@@ -1,0 +1,26 @@
+{
+  "name": "khutwati",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "خطوتي - تطبيق عربي لمتابعة الوزن والرياضة",
+  "scripts": {
+    "web:serve": "node preview-server.js",
+    "ios:add": "cordova platform add ios",
+    "ios:prepare": "cordova prepare ios",
+    "ios:build": "cordova build ios",
+    "android:add": "cordova platform add android",
+    "android:prepare": "cordova prepare android",
+    "android:build": "cordova build android"
+  },
+  "devDependencies": {
+    "cordova": "^13.0.0",
+    "cordova-android": "^14.0.1",
+    "cordova-ios": "^8.0.0"
+  },
+  "cordova": {
+    "platforms": [
+      "ios"
+    ]
+  }
+}

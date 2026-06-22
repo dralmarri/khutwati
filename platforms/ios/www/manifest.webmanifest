@@ -1,0 +1,19 @@
+{
+  "name": "خطوتي",
+  "short_name": "خطوتي",
+  "description": "متابعة الرياضة والوزن بخطوات يومية بسيطة",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fbfaf6",
+  "theme_color": "#087454",
+  "icons": [
+    {
+      "src": "icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

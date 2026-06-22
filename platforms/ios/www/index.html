@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#087454">
+  <meta name="description" content="خطوتي لمتابعة الرياضة والوزن">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/app-icon.svg">
+  <link rel="stylesheet" href="css/index.css">
+  <title>خطوتي</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">خ</div>
+        <div>
+          <h1>خطوتي</h1>
+          <p>كل خطوة تقرّبك</p>
+        </div>
+      </div>
+      <div class="today-date" id="todayDate"></div>
+    </header>
+
+    <main>
+      <section class="goal-card" aria-label="ملخص الهدف">
+        <div class="goal-main">
+          <span class="eyebrow">الهدف القادم</span>
+          <div class="goal-weight"><strong>77.5</strong><span>كجم</span></div>
+        </div>
+        <div class="days-box">
+          <span class="calendar-icon">▣</span>
+          <strong id="daysRemaining">—</strong>
+          <span>يوماً متبقياً</span>
+        </div>
+        <div class="progress-track"><span id="goalProgress"></span></div>
+        <div class="goal-stats">
+          <div><span>البداية</span><strong>82.7</strong></div>
+          <div><span>الحالي</span><strong id="currentWeightTop">82.7</strong></div>
+          <div><span>الموعد</span><strong>15 يوليو</strong></div>
+        </div>
+      </section>
+
+      <section class="section-heading">
+        <div>
+          <span>تمرين اليوم</span>
+          <h2 id="workoutTitle">مشي متدرّج</h2>
+        </div>
+        <button class="text-button" id="showPlanBtn">كل الخطة ‹</button>
+      </section>
+
+      <section class="workout-card">
+        <div class="workout-info">
+          <div class="equipment-icon" id="equipmentIcon" aria-hidden="true">🏃</div>
+          <div class="workout-copy">
+            <div class="workout-title-row">
+              <h3 id="equipmentName">جهاز المشي</h3>
+              <span class="duration-pill">◷ <b id="workoutMinutes">35</b> دقيقة</span>
+            </div>
+            <p id="workoutDescription">5 دقائق إحماء، ثم 25 دقيقة مشي سريع، و5 دقائق تهدئة.</p>
+          </div>
+        </div>
+        <button class="primary-button" id="startWorkoutBtn">ابدأ التمرين</button>
+        <button class="done-button hidden" id="completeWorkoutBtn">✓ تسجيل إكمال التمرين</button>
+      </section>
+
+      <section class="quick-grid">
+        <button class="quick-card" id="weightCard">
+          <span class="quick-icon weight-icon">↘</span>
+          <span>
+            <small>آخر وزن</small>
+            <strong><b id="currentWeightCard">82.7</b> <em>كجم</em></strong>
+            <i>تسجيل جديد ‹</i>
+          </span>
+        </button>
+        <button class="quick-card" id="waterCard">
+          <span class="quick-icon water-icon">💧</span>
+          <span>
+            <small>الماء اليوم</small>
+            <strong><b id="waterLiters">0.0</b> / 2.0 <em>لتر</em></strong>
+            <i><b id="waterCups">0 أكواب</b> · الكوب 250 مل</i>
+          </span>
+        </button>
+      </section>
+
+      <section class="daily-tip">
+        <span class="tip-icon">☀</span>
+        <div>
+          <strong>فكرة اليوم</strong>
+          <p>قلّل السكر والنشويات باعتدال، واهتم بالبروتين والخضار والماء. لا تهمل وجباتك.</p>
+        </div>
+      </section>
+
+      <section class="progress-section" id="progressSection">
+        <div class="section-title-row">
+          <h2>تقدّمي</h2>
+          <button class="text-button" id="shareBtn">مشاركة</button>
+        </div>
+        <div class="progress-summary">
+          <div><small>المنجز</small><strong id="lostWeight">0.0 كجم</strong></div>
+          <div><small>المتبقي</small><strong id="remainingWeight">5.2 كجم</strong></div>
+          <div><small>تمارين مكتملة</small><strong id="completedCount">0</strong></div>
+        </div>
+        <div class="history" id="weightHistory">
+          <p class="empty-state">سجّل وزنك الأول ليظهر سجل التقدم هنا.</p>
+        </div>
+      </section>
+
+      <section class="plan-section" id="planSection">
+        <h2>الخطة اليومية حتى 15 يوليو</h2>
+        <p class="plan-note">كل يوم له تاريخ ومستوى محدد، مع زيادة تدريجية ثم تخفيف الحمل قبل يوم الهدف.</p>
+        <div id="weeklyPlan"></div>
+        <div class="water-guidance">
+          <strong>هدف الماء في التطبيق: 2.0 لتر</strong>
+          <p>يعادل 8 أكواب × 250 مل. هذا هدف إرشادي؛ قد تحتاج أكثر مع حرارة الكويت أو التعرق والرياضة. إذا وصف لك الطبيب تقييداً للسوائل فاتبع تعليماته.</p>
+        </div>
+        <div class="safety-note">
+          <strong>تنبيه للسلامة</strong>
+          <p>ابدأ بهدوء وتوقف عند ألم الصدر أو الدوار أو ضيق النفس غير المعتاد أو ألم المفاصل الحاد. استشر طبيبك قبل البدء إذا كان لديك مرض مزمن أو إصابة.</p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="التنقل الرئيسي">
+      <button data-target="top" class="active">⌂<span>اليوم</span></button>
+      <button data-target="planSection">▦<span>الخطة</span></button>
+      <button data-target="progressSection">⌁<span>التقدم</span></button>
+    </nav>
+  </div>
+
+  <dialog id="weightDialog">
+    <form method="dialog" id="weightForm">
+      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <h2>تسجيل الوزن</h2>
+      <p>اكتب وزنك الحالي بالكيلوجرام</p>
+      <label>
+        <span>الوزن</span>
+        <input id="weightInput" type="number" min="40" max="200" step="0.1" inputmode="decimal" required>
+      </label>
+      <button class="primary-button" value="default">حفظ الوزن</button>
+    </form>
+  </dialog>
+
+  <dialog id="timerDialog">
+    <div class="timer-modal">
+      <button class="close-dialog" id="closeTimerBtn" aria-label="إغلاق">×</button>
+      <span class="eyebrow">وقت التمرين</span>
+      <div class="timer-value" id="timerValue">35:00</div>
+      <p id="timerStatus">جاهز للبدء</p>
+      <div class="timer-actions">
+        <button class="primary-button" id="timerToggleBtn">ابدأ</button>
+        <button class="secondary-button" id="timerResetBtn">إعادة</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="cordova.js"></script>
+  <script src="js/index.js"></script>
+</body>
+</html>
