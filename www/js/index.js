@@ -10,7 +10,8 @@
     targetDate: "2026-07-15",
     sessionMinutes: 30,
     location: "home",
-    equipment: ["treadmill", "bike", "bands", "mat", "medicineBall"]
+    equipment: ["treadmill", "bike", "bands", "mat", "medicineBall"],
+    durationOverrides: {}
   };
 
   const videoSearch = query => `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
@@ -189,7 +190,16 @@
   };
 
   let state = loadState();
-  let timer = { remaining: 35 * 60, running: false, interval: null };
+  let timer = {
+    sections: [],
+    sectionIndex: 0,
+    remaining: 0,
+    running: false,
+    interval: null,
+    sessionDate: "",
+    started: false,
+    hidden: false
+  };
 
   const $ = (id) => document.getElementById(id);
 
@@ -427,6 +437,10 @@
       { key: "mobility", minutes: mobility, note: sectionLibrary.mobility.detail }
     ].map(section => {
       const result = { ...sectionLibrary[section.key], ...section };
+      const customMinutes = Number(state.profile.durationOverrides?.[section.key]);
+      if (Number.isFinite(customMinutes) && customMinutes >= 1) {
+        result.minutes = clamp(Math.round(customMinutes), 1, 90);
+      }
       if (section.key === "matBall") {
         result.instructions = matBallGuides.filter(guide =>
           guide.requires.every(requiredEquipment => available.has(requiredEquipment))
@@ -512,14 +526,18 @@
     $("adaptiveLevel").textContent = session.profile.level;
     $("adaptiveReason").textContent = session.profile.reason;
     $("todaySections").innerHTML = session.sections.map(section => `
-      <div class="session-section">
+      <div class="session-section" data-section-key="${section.key}">
         <span class="section-icon">${section.icon}</span>
         <span><strong>${section.title}</strong><small>${section.note || section.detail}</small></span>
-        <span class="section-time">${section.minutes} د</span>
+        <span class="section-duration-control" aria-label="تعديل مدة ${section.title}">
+          <button type="button" data-duration-change="-1" aria-label="خفض مدة ${section.title}">−</button>
+          <span class="section-time">${section.minutes} د</span>
+          <button type="button" data-duration-change="1" aria-label="زيادة مدة ${section.title}">＋</button>
+        </span>
         ${renderExerciseGuide(section)}
       </div>
     `).join("");
-    if (!timer.running) timer.remaining = session.totalMinutes * 60;
+    initializeTimer(session);
     updateTimerDisplay();
 
     const completedToday = Boolean(state.workoutFeedback[dateKey()]);
@@ -606,35 +624,132 @@
     setTimeout(() => $("weightInput").select(), 50);
   }
 
-  function updateTimerDisplay() {
-    const minutes = Math.floor(timer.remaining / 60);
-    const seconds = timer.remaining % 60;
-    $("timerValue").textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  function initializeTimer(session = buildSession(currentWorkout()), force = false) {
+    const today = dateKey();
+    if (!force && timer.sessionDate === today && timer.sections.length) return;
+    clearInterval(timer.interval);
+    timer.sections = session.sections.map(section => ({ ...section }));
+    timer.sectionIndex = 0;
+    timer.remaining = (timer.sections[0]?.minutes || 1) * 60;
+    timer.running = false;
+    timer.interval = null;
+    timer.sessionDate = today;
+    timer.started = false;
+    timer.hidden = false;
   }
 
-  function stopTimer() {
+  function currentTimerSection() {
+    return timer.sections[timer.sectionIndex] || null;
+  }
+
+  function timerClock(seconds) {
+    const safeSeconds = Math.max(0, seconds);
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainder = safeSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+  }
+
+  function updateTimerDisplay(statusMessage) {
+    const section = currentTimerSection();
+    if (!section) return;
+    const clock = timerClock(timer.remaining);
+    $("timerValue").textContent = clock;
+    $("timerSectionProgress").textContent = `المرحلة ${timer.sectionIndex + 1} من ${timer.sections.length}`;
+    $("timerSectionIcon").textContent = section.icon;
+    $("timerSectionName").textContent = section.title;
+    $("timerSectionInstructions").textContent = section.note || section.detail;
+    $("timerSectionDuration").textContent = `مدة المرحلة: ${section.minutes} دقائق`;
+    $("timerSectionGuide").innerHTML = renderExerciseGuide(section);
+    $("timerToggleBtn").textContent = timer.running ? "إيقاف مؤقت" : (timer.started ? "استمرار" : "ابدأ");
+    $("timerNextBtn").textContent = timer.sectionIndex === timer.sections.length - 1 ? "إنهاء الجلسة" : "المرحلة التالية";
+    if (statusMessage) $("timerStatus").textContent = statusMessage;
+    $("miniTimerIcon").textContent = section.icon;
+    $("miniTimerTitle").textContent = section.title;
+    $("miniTimerValue").textContent = clock;
+    $("miniTimerToggleBtn").textContent = timer.running ? "Ⅱ" : "▶";
+    $("miniTimerToggleBtn").setAttribute("aria-label", timer.running ? "إيقاف المؤقت مؤقتاً" : "استمرار المؤقت");
+    $("miniTimer").classList.toggle("hidden", !timer.started || !timer.hidden);
+  }
+
+  function pauseTimer(message = "المؤقت متوقف مؤقتاً") {
     clearInterval(timer.interval);
     timer.interval = null;
     timer.running = false;
-    $("timerToggleBtn").textContent = "استمرار";
-    $("timerStatus").textContent = "المؤقت متوقف";
+    updateTimerDisplay(message);
+  }
+
+  function advanceTimer() {
+    navigator.vibrate?.([200, 100, 200]);
+    if (timer.sectionIndex >= timer.sections.length - 1) {
+      pauseTimer("اكتملت الجلسة! سجّل إنجازك.");
+      timer.remaining = 0;
+      updateTimerDisplay();
+      return;
+    }
+    timer.sectionIndex += 1;
+    timer.remaining = currentTimerSection().minutes * 60;
+    updateTimerDisplay(`ابدأ الآن: ${currentTimerSection().title}`);
   }
 
   function toggleTimer() {
-    if (timer.running) return stopTimer();
-    if (timer.remaining <= 0) timer.remaining = currentWorkout().minutes * 60;
+    initializeTimer();
+    if (timer.running) return pauseTimer();
+    if (timer.remaining <= 0) timer.remaining = currentTimerSection().minutes * 60;
+    timer.started = true;
     timer.running = true;
-    $("timerToggleBtn").textContent = "إيقاف مؤقت";
-    $("timerStatus").textContent = "أحسنت، استمر!";
+    updateTimerDisplay("المؤقت يعمل ويمكنك إخفاؤه وتصفح التطبيق.");
     timer.interval = setInterval(() => {
       timer.remaining -= 1;
-      updateTimerDisplay();
-      if (timer.remaining <= 0) {
-        stopTimer();
-        $("timerStatus").textContent = "اكتمل الوقت! سجّل إنجازك.";
-        navigator.vibrate?.([200, 100, 200]);
-      }
+      if (timer.remaining <= 0) advanceTimer();
+      else updateTimerDisplay();
     }, 1000);
+  }
+
+  function resetCurrentTimerSection() {
+    pauseTimer("أُعيدت المرحلة الحالية إلى بدايتها.");
+    timer.remaining = currentTimerSection().minutes * 60;
+    timer.started = true;
+    updateTimerDisplay();
+  }
+
+  function resetTimerSession() {
+    clearInterval(timer.interval);
+    timer.interval = null;
+    timer.sections = [];
+    timer.sessionDate = "";
+    timer.started = false;
+    timer.running = false;
+    timer.hidden = false;
+    $("miniTimer").classList.add("hidden");
+  }
+
+  function hideTimerAndBrowse() {
+    timer.hidden = true;
+    $("timerDialog").close();
+    updateTimerDisplay();
+  }
+
+  function changeSectionDuration(sectionKey, change) {
+    const sessionBefore = buildSession(currentWorkout());
+    const sectionBefore = sessionBefore.sections.find(section => section.key === sectionKey);
+    if (!sectionBefore) return;
+    const nextMinutes = clamp(sectionBefore.minutes + change, 1, 90);
+    state.profile.durationOverrides = {
+      ...(state.profile.durationOverrides || {}),
+      [sectionKey]: nextMinutes
+    };
+    saveState();
+
+    const updatedSession = buildSession(currentWorkout());
+    if (timer.sessionDate === dateKey() && timer.sections.length) {
+      timer.sections = updatedSession.sections.map(section => ({ ...section }));
+      const activeSection = currentTimerSection();
+      if (activeSection?.key === sectionKey) {
+        timer.remaining = Math.max(1, timer.remaining + change * 60);
+      }
+    }
+    render();
+    showToast(`مدة ${sectionBefore.title}: ${nextMinutes} دقائق`);
   }
 
   $("waterCard").addEventListener("click", () => {
@@ -664,16 +779,34 @@
   });
 
   $("startWorkoutBtn").addEventListener("click", () => {
+    initializeTimer();
+    timer.hidden = false;
+    updateTimerDisplay(timer.started ? undefined : "جاهز لبدء المرحلة الأولى");
     $("timerDialog").showModal();
+    $("miniTimer").classList.add("hidden");
   });
-  $("closeTimerBtn").addEventListener("click", () => $("timerDialog").close());
+  $("hideTimerBtn").addEventListener("click", hideTimerAndBrowse);
+  $("browseWhileTrainingBtn").addEventListener("click", hideTimerAndBrowse);
   $("timerToggleBtn").addEventListener("click", toggleTimer);
-  $("timerResetBtn").addEventListener("click", () => {
-    stopTimer();
-    timer.remaining = buildSession(currentWorkout()).totalMinutes * 60;
-    $("timerStatus").textContent = "جاهز للبدء";
-    $("timerToggleBtn").textContent = "ابدأ";
+  $("miniTimerToggleBtn").addEventListener("click", toggleTimer);
+  $("timerNextBtn").addEventListener("click", advanceTimer);
+  $("timerResetBtn").addEventListener("click", resetCurrentTimerSection);
+  $("openMiniTimerBtn").addEventListener("click", () => {
+    timer.hidden = false;
     updateTimerDisplay();
+    $("timerDialog").showModal();
+    $("miniTimer").classList.add("hidden");
+  });
+  $("timerDialog").addEventListener("cancel", event => {
+    event.preventDefault();
+    hideTimerAndBrowse();
+  });
+
+  $("todaySections").addEventListener("click", event => {
+    const control = event.target.closest("[data-duration-change]");
+    if (!control) return;
+    const section = control.closest("[data-section-key]");
+    changeSectionDuration(section.dataset.sectionKey, Number(control.dataset.durationChange));
   });
 
   $("completeWorkoutBtn").addEventListener("click", () => {
@@ -749,10 +882,12 @@
       targetDate: $("profileTargetDate").value,
       sessionMinutes: Number($("profileSessionMinutes").value),
       location: document.querySelector('input[name="location"]:checked')?.value || "home",
-      equipment
+      equipment,
+      durationOverrides: state.profile.durationOverrides || {}
     };
     if (!state.weights.length) state.currentWeight = startWeight;
     dailyPlan = [];
+    resetTimerSession();
     saveState();
     $("profileDialog").close();
     render();

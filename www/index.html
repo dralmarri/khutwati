@@ -179,14 +179,25 @@
 
   <dialog id="timerDialog">
     <div class="timer-modal">
-      <button class="close-dialog" id="closeTimerBtn" aria-label="إغلاق">×</button>
-      <span class="eyebrow">وقت التمرين</span>
+      <button class="close-dialog timer-hide-button" id="hideTimerBtn" aria-label="إخفاء المؤقت">−</button>
+      <span class="eyebrow" id="timerSectionProgress">المرحلة 1</span>
+      <div class="timer-exercise">
+        <span class="timer-exercise-icon" id="timerSectionIcon">🔥</span>
+        <div>
+          <h2 id="timerSectionName">الإحماء والحركة</h2>
+          <p id="timerSectionInstructions">مشي في المكان وتحريك الكتفين والكاحلين.</p>
+        </div>
+      </div>
       <div class="timer-value" id="timerValue">35:00</div>
+      <strong class="timer-duration-label" id="timerSectionDuration">مدة المرحلة: 4 دقائق</strong>
       <p id="timerStatus">جاهز للبدء</p>
+      <div class="timer-section-guide" id="timerSectionGuide"></div>
       <div class="timer-actions">
         <button class="primary-button" id="timerToggleBtn">ابدأ</button>
-        <button class="secondary-button" id="timerResetBtn">إعادة</button>
+        <button class="secondary-button" id="timerNextBtn">المرحلة التالية</button>
       </div>
+      <button class="timer-reset-button" id="timerResetBtn">إعادة المرحلة الحالية</button>
+      <button class="timer-browse-button" id="browseWhileTrainingBtn">إخفاء ومتابعة تصفح التطبيق</button>
     </div>
   </dialog>
 
@@ -271,6 +282,14 @@
       <button class="primary-button" value="default">حفظ وبناء الخطة</button>
     </form>
   </dialog>
+
+  <aside class="mini-timer hidden" id="miniTimer" aria-live="polite">
+    <button class="mini-timer-main" id="openMiniTimerBtn">
+      <span id="miniTimerIcon">🔥</span>
+      <span><strong id="miniTimerTitle">الإحماء والحركة</strong><small id="miniTimerValue">04:00</small></span>
+    </button>
+    <button class="mini-timer-toggle" id="miniTimerToggleBtn" aria-label="إيقاف المؤقت مؤقتاً">Ⅱ</button>
+  </aside>
 
   <div class="toast" id="toast" role="status"></div>
   <script src="cordova.js"></script>

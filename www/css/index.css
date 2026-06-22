@@ -229,7 +229,20 @@ button { cursor: pointer; }
 }
 .session-section strong, .session-section small { display: block; }
 .session-section small { margin-top: 3px; color: var(--muted); line-height: 1.45; }
-.session-section .section-time { color: var(--green); font-weight: 800; white-space: nowrap; }
+.section-duration-control { display: flex; align-items: center; gap: 6px; }
+.section-duration-control button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--green);
+  border: 1px solid #cfe4da;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+.section-duration-control .section-time { min-width: 38px; color: var(--green); font-weight: 800; text-align: center; white-space: nowrap; }
 .exercise-guide {
   grid-column: 1 / -1;
   margin-top: 3px;
@@ -471,9 +484,52 @@ legend { margin-bottom: 10px; font-weight: 800; }
 .pain-check { display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; background: #fff4f1; color: #8a3b31; }
 .pain-check input { width: auto; padding: 0; }
 .timer-modal { text-align: center; }
+.timer-hide-button { color: var(--green); background: var(--green-soft); font-weight: 900; }
+.timer-exercise {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 18px;
+  padding: 14px;
+  text-align: right;
+  border: 1px solid #dce9e3;
+  border-radius: 17px;
+  background: #f7fbf9;
+}
+.timer-exercise-icon { flex: 0 0 52px; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 15px; background: var(--green-soft); font-size: 27px; }
+.timer-exercise h2 { font-size: 22px; }
+.timer-exercise p { margin: 4px 0 0; line-height: 1.55; font-size: 14px; }
 .timer-value { margin: 20px 0 5px; direction: ltr; color: var(--green-dark); font-size: 70px; font-weight: 800; letter-spacing: 2px; }
+.timer-duration-label { display: block; color: var(--green); font-size: 14px; }
+.timer-section-guide { max-height: 210px; overflow: auto; text-align: right; }
+.timer-section-guide .exercise-guide { margin-top: 12px; }
 .timer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .timer-actions button { margin-top: 15px; }
+.timer-reset-button, .timer-browse-button { width: 100%; margin-top: 10px; padding: 11px; border-radius: 13px; font-weight: 800; }
+.timer-reset-button { color: #65716c; border: 0; background: #f0f2f1; }
+.timer-browse-button { color: var(--green); border: 1px solid #cfe4da; background: #fff; }
+.mini-timer {
+  position: fixed;
+  z-index: 8;
+  right: 50%;
+  bottom: calc(82px + env(safe-area-inset-bottom));
+  transform: translateX(50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(calc(100% - 28px), 630px);
+  padding: 9px;
+  color: #fff;
+  border-radius: 18px;
+  background: rgba(5, 86, 63, .96);
+  box-shadow: 0 12px 35px rgba(0,0,0,.22);
+}
+.mini-timer-main { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px 7px; color: #fff; border: 0; background: transparent; text-align: right; }
+.mini-timer-main > span:first-child { font-size: 25px; }
+.mini-timer-main strong, .mini-timer-main small { display: block; }
+.mini-timer-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-timer-main small { margin-top: 2px; direction: ltr; text-align: right; color: #d3eee4; font-size: 16px; font-weight: 800; }
+.mini-timer-toggle { flex: 0 0 43px; width: 43px; height: 43px; color: var(--green-dark); border: 0; border-radius: 13px; background: #fff; font-weight: 900; }
 .toast {
   position: fixed;
   z-index: 20;
@@ -510,6 +566,8 @@ legend { margin-bottom: 10px; font-weight: 800; }
   .equipment-icon { flex-basis: 83px; width: 83px; height: 83px; font-size: 39px; }
   .workout-title-row h3 { font-size: 21px; }
   .duration-pill { font-size: 13px; }
+  .session-section { grid-template-columns: 38px 1fr; }
+  .section-duration-control { grid-column: 1 / -1; justify-content: flex-end; }
   .quick-grid { grid-template-columns: 1fr; }
   .quick-card { min-height: 118px; }
   .exercise-details { margin-right: 0; }
