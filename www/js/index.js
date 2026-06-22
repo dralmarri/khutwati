@@ -1,12 +1,17 @@
 (() => {
   "use strict";
 
-  const START_WEIGHT = 82.7;
-  const TARGET_WEIGHT = 77.5;
-  const TARGET_DATE = new Date("2026-07-15T23:59:59");
   const STORAGE_KEY = "khutwati-state-v1";
   const WATER_CUP_LITERS = 0.25;
   const WATER_TARGET_LITERS = 2;
+  const DEFAULT_PROFILE = {
+    startWeight: 82.7,
+    targetWeight: 77.5,
+    targetDate: "2026-07-15",
+    sessionMinutes: 30,
+    location: "home",
+    equipment: ["treadmill", "bike", "bands", "mat", "medicineBall"]
+  };
 
   const videoSearch = query => `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
   const workoutTemplates = {
@@ -122,43 +127,15 @@
     }
   };
 
-  const scheduleRows = [
-    ["2026-06-22", "bikeBands", 25, "الأسبوع 1 · بداية هادئة", ["دراجة 17 دقيقة، ثم جولة واحدة من الحبال × 10 تكرارات."]],
-    ["2026-06-23", "matBall", 20, "الأسبوع 1 · تأسيس", ["جولة واحدة إلى جولتين، 8 تكرارات لكل حركة."]],
-    ["2026-06-24", "recovery", 20, "الأسبوع 1 · استشفاء", ["ثبت كل تمدد 20 ثانية وكرر مرتين."]],
-    ["2026-06-25", "intervals", 30, "الأسبوع 1 · فترات خفيفة", ["كرر 6 مرات: دقيقتان مريحتان ودقيقة أسرع، من دون ميل."]],
-    ["2026-06-26", "circuit", 22, "الأسبوع 1 · دائرتان", ["نفّذ جولتين، 8 تكرارات لكل حركة، و30 ثانية لحمل الكرة."]],
-    ["2026-06-27", "rest", 0, "الأسبوع 1 · راحة", ["مشي اختياري من 10 إلى 15 دقيقة فقط."]],
-    ["2026-06-28", "treadmill", 35, "الأسبوع 1 · تثبيت التحمل", ["20 دقيقة بسرعة متوسطة، ثم 5 دقائق أسرع قليلاً."]],
-    ["2026-06-29", "bikeBands", 30, "الأسبوع 2 · زيادة بسيطة", ["دراجة 20 دقيقة، ثم جولتان من الحبال × 10 تكرارات."]],
-    ["2026-06-30", "matBall", 25, "الأسبوع 2 · جولتان", ["جولتان كاملتان، 10 تكرارات لكل حركة و6 للطائر لكل جانب."]],
-    ["2026-07-01", "recovery", 20, "الأسبوع 2 · استشفاء", ["أضف دقيقتين من التنفس الهادئ في النهاية."]],
-    ["2026-07-02", "intervals", 35, "الأسبوع 2 · فترات متوسطة", ["كرر 7 مرات، ويمكن إضافة ميل 1% إن كان المشي سهلاً."]],
-    ["2026-07-03", "circuit", 26, "الأسبوع 2 · ثلاث جولات", ["نفّذ 3 جولات، 10 تكرارات لكل حركة."]],
-    ["2026-07-04", "rest", 15, "الأسبوع 2 · راحة نشطة", ["مشي هادئ 15 دقيقة أو راحة كاملة عند التعب."]],
-    ["2026-07-05", "treadmill", 40, "الأسبوع 2 · تحمل أطول", ["25 دقيقة متوسطة، 5 دقائق أسرع، ثم تهدئة."]],
-    ["2026-07-06", "bikeBands", 35, "الأسبوع 3 · تقدم", ["دراجة 23 دقيقة، ثم جولتان من الحبال × 12 تكراراً."]],
-    ["2026-07-07", "matBall", 30, "الأسبوع 3 · ثلاث جولات", ["3 جولات، 10 تكرارات؛ خفّضها إلى جولتين إذا تدهورت الوضعية."]],
-    ["2026-07-08", "recovery", 20, "الأسبوع 3 · استشفاء", ["حركة بطيئة وتركيز على التنفس، من دون ألم."]],
-    ["2026-07-09", "intervals", 40, "الأسبوع 3 · أعلى جلسة", ["كرر 8 مرات، ويمكن ميل 1–2% فقط إذا كان مريحاً."]],
-    ["2026-07-10", "circuit", 30, "الأسبوع 3 · دائرة كاملة", ["3 جولات، 12 تكراراً لكل حركة و45 ثانية لحمل الكرة."]],
-    ["2026-07-11", "rest", 0, "الأسبوع 3 · راحة", ["راحة كاملة مع نوم جيد وماء منتظم."]],
-    ["2026-07-12", "treadmill", 45, "الأسبوع 3 · أطول مشي", ["30 دقيقة متوسطة، 5 دقائق أسرع، ثم تهدئة. لا تحاول الجري."]],
-    ["2026-07-13", "bikeBands", 30, "المرحلة الأخيرة · تخفيف", ["دراجة 20 دقيقة وجولة واحدة خفيفة من الحبال."]],
-    ["2026-07-14", "matBall", 20, "المرحلة الأخيرة · تنشيط", ["جولتان خفيفتان، 8 تكرارات، من دون إجهاد."]],
-    ["2026-07-15", "recovery", 20, "يوم الهدف · حركة لطيفة", ["مشي خفيف وتمدد فقط؛ لا تستخدم تمريناً قاسياً لمحاولة تغيير رقم الميزان."]]
-  ];
-
-  const dailyPlan = scheduleRows.map(([date, type, minutes, phase, adjustments]) => ({
-    date, type, minutes, phase, adjustments, ...workoutTemplates[type]
-  }));
+  let dailyPlan = [];
 
   const defaultState = {
-    currentWeight: START_WEIGHT,
+    currentWeight: DEFAULT_PROFILE.startWeight,
     weights: [],
     water: { date: "", count: 0 },
     completedWorkouts: [],
-    workoutFeedback: {}
+    workoutFeedback: {},
+    profile: DEFAULT_PROFILE
   };
 
   let state = loadState();
@@ -172,7 +149,8 @@
       return {
         ...defaultState,
         ...saved,
-        workoutFeedback: saved.workoutFeedback || {}
+        workoutFeedback: saved.workoutFeedback || {},
+        profile: { ...DEFAULT_PROFILE, ...(saved.profile || {}) }
       };
     } catch {
       return structuredClone(defaultState);
@@ -194,7 +172,45 @@
     return new Intl.DateTimeFormat("ar-KW", { day: "numeric", month: "long" }).format(date);
   }
 
+  function generateDailyPlan() {
+    const start = new Date();
+    start.setHours(12, 0, 0, 0);
+    let end = new Date(`${state.profile.targetDate}T12:00:00`);
+    if (!Number.isFinite(end.getTime()) || end < start) {
+      end = new Date(start);
+      end.setDate(end.getDate() + 27);
+    }
+    const totalDays = clamp(Math.floor((end - start) / 86400000) + 1, 7, 365);
+    const typeCycle = ["bikeBands", "matBall", "recovery", "intervals", "circuit", "rest", "treadmill"];
+    dailyPlan = Array.from({ length: totalDays }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      const progress = totalDays > 1 ? index / (totalDays - 1) : 0;
+      const taper = progress > 0.88;
+      const week = Math.floor(index / 7) + 1;
+      const type = taper ? (index % 2 ? "recovery" : "matBall") : typeCycle[index % typeCycle.length];
+      const template = workoutTemplates[type];
+      const base = Number(state.profile.sessionMinutes || 30);
+      const progressiveMinutes = taper
+        ? Math.max(20, Math.round(base * 0.7))
+        : Math.round(base * (1 + Math.min(progress, 0.75) * 0.1));
+      return {
+        ...template,
+        date: dateKey(date),
+        type,
+        minutes: type === "rest" ? Math.max(15, Math.round(base * 0.5)) : progressiveMinutes,
+        phase: taper ? "المرحلة الأخيرة · تخفيف" : `الأسبوع ${week} · تدرّج شخصي`,
+        adjustments: [
+          taper
+            ? "حمل خفيف للحفاظ على النشاط والتعافي."
+            : `الجلسة مبنية على مدة ${base} دقيقة ومعدّلة تدريجياً حسب الأسبوع.`
+        ]
+      };
+    });
+  }
+
   function currentWorkout() {
+    if (!dailyPlan.length) generateDailyPlan();
     const today = dateKey();
     return dailyPlan.find(item => item.date === today)
       || dailyPlan.find(item => item.date > today)
@@ -217,6 +233,16 @@
       detail: "مقاومة خفيفة إلى متوسطة مع ظهر مستقيم",
       link: ["استخدام الدراجة الثابتة", videoSearch("طريقة استخدام الدراجة الثابتة للمبتدئين ضبط المقعد")]
     },
+    elliptical: {
+      icon: "🏋️", title: "جهاز الإليبتيكال",
+      detail: "حركة هوائية منخفضة الصدمات بسرعة مريحة",
+      link: ["طريقة استخدام الإليبتيكال", videoSearch("طريقة استخدام جهاز elliptical للمبتدئين")]
+    },
+    rowingMachine: {
+      icon: "🚣", title: "جهاز التجديف",
+      detail: "دفع بالساقين ثم سحب الذراعين مع ظهر محايد",
+      link: ["طريقة استخدام جهاز التجديف", videoSearch("طريقة استخدام جهاز التجديف للمبتدئين rowing machine")]
+    },
     resistance: {
       icon: "💪", title: "الحبال وتمارين المقاومة",
       detail: "سحب الحبل، دفع الصدر، وجلوس وقيام من كرسي",
@@ -226,6 +252,21 @@
       icon: "⚫", title: "الحصيرة والكرة الطبية",
       detail: "جسر الحوض، تمرين الطائر، وضغط الكرة",
       link: ["تمارين الحصيرة والكرة الطبية", videoSearch("تمارين الكرة الطبية والحصيرة للمبتدئين medicine ball mat")]
+    },
+    dumbbells: {
+      icon: "🏋️", title: "تمارين الدمبل",
+      detail: "سكوات خفيف، سحب دمبل، وضغط كتف بتحكم",
+      link: ["تمارين دمبل للمبتدئين", videoSearch("تمارين دمبل للمبتدئين جسم كامل")]
+    },
+    cableMachine: {
+      icon: "🔗", title: "جهاز الكيبل",
+      detail: "سحب أفقي ودفع صدر بأوزان خفيفة",
+      link: ["تمارين جهاز الكيبل للمبتدئين", videoSearch("تمارين جهاز الكيبل للمبتدئين cable machine")]
+    },
+    bodyweight: {
+      icon: "🤸", title: "تمارين وزن الجسم",
+      detail: "جلوس وقيام، ضغط على الجدار، وتمرين الطائر",
+      link: ["تمارين وزن الجسم للمبتدئين", videoSearch("تمارين وزن الجسم للمبتدئين في المنزل")]
     },
     mobility: {
       icon: "🧘", title: "التهدئة والتمدد",
@@ -301,22 +342,38 @@
   function buildSession(workout) {
     const profile = adaptiveProfile();
     const isRecovery = workout.type === "rest" || workout.type === "recovery";
-    const baseMinutes = workout.minutes || 15;
-    const total = clamp(baseMinutes + profile.adjustment * 5, isRecovery ? 15 : 20, isRecovery ? 25 : 50);
+    const available = new Set(state.profile.equipment || []);
+    const baseMinutes = workout.minutes || Number(state.profile.sessionMinutes) || 30;
+    const total = clamp(baseMinutes + profile.adjustment * 5, isRecovery ? 15 : 20, isRecovery ? 25 : 60);
     const warmup = isRecovery ? 3 : 4;
     const mobility = isRecovery ? 7 : 5;
     const strength = isRecovery ? 0 : Math.max(6, Math.round(total * 0.26));
-    const cardio = total - warmup - mobility - strength;
-    const treadmill = Math.max(3, Math.ceil(cardio * (workout.type === "bikeBands" ? 0.4 : 0.58)));
-    const bike = Math.max(3, cardio - treadmill);
-    const resistanceKey = workout.type === "matBall" ? "matBall" : "resistance";
+    const cardio = Math.max(6, total - warmup - mobility - strength);
+    const cardioOptions = [
+      available.has("treadmill") && "treadmill",
+      available.has("bike") && "bike",
+      available.has("elliptical") && "elliptical",
+      available.has("rowingMachine") && "rowingMachine"
+    ].filter(Boolean);
+    if (!cardioOptions.length) cardioOptions.push("bodyweight");
+    const selectedCardio = cardioOptions.slice(0, 2);
+    const firstCardioMinutes = selectedCardio.length > 1 ? Math.ceil(cardio * 0.55) : cardio;
+    const secondCardioMinutes = cardio - firstCardioMinutes;
+    const strengthOptions = [
+      available.has("bands") && "resistance",
+      available.has("dumbbells") && "dumbbells",
+      available.has("cableMachine") && "cableMachine",
+      (available.has("medicineBall") || available.has("mat")) && "matBall",
+      "bodyweight"
+    ].filter(Boolean);
+    const strengthKey = strengthOptions[new Date(`${workout.date}T12:00:00`).getDay() % strengthOptions.length];
     const rounds = profile.adjustment > 0 ? 3 : profile.adjustment < 0 ? 1 : 2;
     const reps = profile.adjustment > 0 ? 12 : profile.adjustment < 0 ? 8 : 10;
     const sections = [
       { key: "warmup", minutes: warmup, note: sectionLibrary.warmup.detail },
-      { key: workout.type === "bikeBands" ? "bike" : "treadmill", minutes: workout.type === "bikeBands" ? bike : treadmill, note: workout.type === "intervals" ? "تناوب بين دقيقتين مريحتين ودقيقة أسرع." : undefined },
-      { key: workout.type === "bikeBands" ? "treadmill" : "bike", minutes: workout.type === "bikeBands" ? treadmill : bike },
-      ...(strength ? [{ key: resistanceKey, minutes: strength, note: `${rounds} ${rounds === 1 ? "جولة" : "جولات"} × ${reps} تكرارات لكل حركة.` }] : []),
+      { key: selectedCardio[0], minutes: firstCardioMinutes, note: workout.type === "intervals" ? "تناوب بين دقيقتين مريحتين ودقيقة أسرع." : undefined },
+      ...(selectedCardio[1] && secondCardioMinutes ? [{ key: selectedCardio[1], minutes: secondCardioMinutes }] : []),
+      ...(strength ? [{ key: strengthKey, minutes: strength, note: `${rounds} ${rounds === 1 ? "جولة" : "جولات"} × ${reps} تكرارات لكل حركة.` }] : []),
       { key: "mobility", minutes: mobility, note: sectionLibrary.mobility.detail }
     ].map(section => ({ ...sectionLibrary[section.key], ...section }));
 
@@ -339,28 +396,37 @@
 
   function render() {
     refreshDailyWater();
+    generateDailyPlan();
     const now = new Date();
-    const days = Math.max(0, Math.ceil((TARGET_DATE - now) / 86400000));
-    const lost = Math.max(0, START_WEIGHT - state.currentWeight);
-    const total = START_WEIGHT - TARGET_WEIGHT;
-    const progress = Math.min(100, Math.max(0, (lost / total) * 100));
+    const targetDate = new Date(`${state.profile.targetDate}T23:59:59`);
+    const days = Math.max(0, Math.ceil((targetDate - now) / 86400000));
+    const lost = Math.max(0, Number(state.profile.startWeight) - state.currentWeight);
+    const total = Number(state.profile.startWeight) - Number(state.profile.targetWeight);
+    const progress = total > 0 ? Math.min(100, Math.max(0, (lost / total) * 100)) : 0;
     const workout = currentWorkout();
     const session = buildSession(workout);
 
     $("todayDate").textContent = formatArabicDate(now);
     $("daysRemaining").textContent = new Intl.NumberFormat("ar").format(days);
     $("goalProgress").style.width = `${progress}%`;
+    $("targetWeightTop").textContent = Number(state.profile.targetWeight).toFixed(1);
+    $("startWeightTop").textContent = Number(state.profile.startWeight).toFixed(1);
+    $("targetDateTop").textContent = formatArabicDate(targetDate);
     $("currentWeightTop").textContent = state.currentWeight.toFixed(1);
     $("currentWeightCard").textContent = state.currentWeight.toFixed(1);
     const waterLiters = state.water.count * WATER_CUP_LITERS;
     $("waterLiters").textContent = waterLiters.toFixed(2).replace(/\.00$/, ".0");
     $("waterCups").textContent = `${state.water.count} أكواب`;
     $("lostWeight").textContent = `${lost.toFixed(1)} كجم`;
-    $("remainingWeight").textContent = `${Math.max(0, state.currentWeight - TARGET_WEIGHT).toFixed(1)} كجم`;
+    $("remainingWeight").textContent = `${Math.max(0, state.currentWeight - Number(state.profile.targetWeight)).toFixed(1)} كجم`;
     $("completedCount").textContent = state.completedWorkouts.length;
+    const locationNames = { home: "المنزل", gym: "النادي", both: "المنزل والنادي" };
+    $("profileLocation").textContent = locationNames[state.profile.location] || "المنزل";
+    $("profileMinutes").textContent = state.profile.sessionMinutes;
+    $("profileEquipment").textContent = `${state.profile.equipment.length} ${state.profile.equipment.length === 1 ? "جهاز" : "أجهزة"}`;
     $("workoutTitle").textContent = "جلسة متكاملة";
     $("equipmentIcon").textContent = "✦";
-    $("equipmentName").textContent = "مشي + دراجة + مقاومة";
+    $("equipmentName").textContent = session.sections.slice(1, -1).map(item => item.title).join(" + ");
     $("workoutMinutes").textContent = session.totalMinutes;
     $("workoutDescription").textContent = `${workout.phase}. ${session.profile.reason}`;
     $("adaptiveLevel").textContent = session.profile.level;
@@ -538,6 +604,59 @@
 
   $("showPlanBtn").addEventListener("click", () => $("planSection").scrollIntoView());
 
+  function openProfileDialog() {
+    $("profileStartWeight").value = Number(state.profile.startWeight).toFixed(1);
+    $("profileTargetWeight").value = Number(state.profile.targetWeight).toFixed(1);
+    $("profileTargetDate").value = state.profile.targetDate;
+    $("profileTargetDate").min = dateKey();
+    $("profileSessionMinutes").value = String(state.profile.sessionMinutes);
+    const locationInput = document.querySelector(`input[name="location"][value="${state.profile.location}"]`);
+    if (locationInput) locationInput.checked = true;
+    document.querySelectorAll('input[name="equipment"]').forEach(input => {
+      input.checked = state.profile.equipment.includes(input.value);
+    });
+    $("profileDialog").showModal();
+  }
+
+  $("settingsBtn").addEventListener("click", openProfileDialog);
+  $("editProfileBtn").addEventListener("click", openProfileDialog);
+
+  document.querySelectorAll('input[name="location"]').forEach(input => {
+    input.addEventListener("change", event => {
+      if (!["gym", "both"].includes(event.target.value)) return;
+      ["treadmill", "bike", "dumbbells", "cableMachine", "elliptical", "rowingMachine", "mat"].forEach(value => {
+        const option = document.querySelector(`input[name="equipment"][value="${value}"]`);
+        if (option) option.checked = true;
+      });
+    });
+  });
+
+  $("profileForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const equipment = Array.from(document.querySelectorAll('input[name="equipment"]:checked')).map(input => input.value);
+    if (!equipment.length) equipment.push("bodyweight");
+    const startWeight = Number($("profileStartWeight").value);
+    const targetWeight = Number($("profileTargetWeight").value);
+    if (targetWeight >= startWeight) {
+      showToast("يجب أن يكون الوزن المستهدف أقل من وزن البداية");
+      return;
+    }
+    state.profile = {
+      startWeight,
+      targetWeight,
+      targetDate: $("profileTargetDate").value,
+      sessionMinutes: Number($("profileSessionMinutes").value),
+      location: document.querySelector('input[name="location"]:checked')?.value || "home",
+      equipment
+    };
+    if (!state.weights.length) state.currentWeight = startWeight;
+    dailyPlan = [];
+    saveState();
+    $("profileDialog").close();
+    render();
+    showToast("تم بناء خطة جديدة حسب إعداداتك ✦");
+  });
+
   document.querySelectorAll(".bottom-nav button").forEach(button => {
     button.addEventListener("click", () => {
       document.querySelectorAll(".bottom-nav button").forEach(item => item.classList.remove("active"));
@@ -549,7 +668,8 @@
   });
 
   $("shareBtn").addEventListener("click", async () => {
-    const text = `هدفي في خطوتي: الوصول من ${START_WEIGHT} إلى ${TARGET_WEIGHT} كجم بحلول 15 يوليو 2026. وزني الحالي ${state.currentWeight.toFixed(1)} كجم.`;
+    const targetDate = new Intl.DateTimeFormat("ar-KW", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${state.profile.targetDate}T12:00:00`));
+    const text = `هدفي في خطوتي: الوصول من ${Number(state.profile.startWeight).toFixed(1)} إلى ${Number(state.profile.targetWeight).toFixed(1)} كجم بحلول ${targetDate}. وزني الحالي ${state.currentWeight.toFixed(1)} كجم.`;
     try {
       if (navigator.share) await navigator.share({ title: "خطوتي", text, url: location.href });
       else {

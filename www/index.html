@@ -21,13 +21,14 @@
         </div>
       </div>
       <div class="today-date" id="todayDate"></div>
+      <button class="settings-button" id="settingsBtn" aria-label="إعداد الخطة">⚙</button>
     </header>
 
     <main>
       <section class="goal-card" aria-label="ملخص الهدف">
         <div class="goal-main">
           <span class="eyebrow">الهدف القادم</span>
-          <div class="goal-weight"><strong>77.5</strong><span>كجم</span></div>
+          <div class="goal-weight"><strong id="targetWeightTop">77.5</strong><span>كجم</span></div>
         </div>
         <div class="days-box">
           <span class="calendar-icon">▣</span>
@@ -36,10 +37,17 @@
         </div>
         <div class="progress-track"><span id="goalProgress"></span></div>
         <div class="goal-stats">
-          <div><span>البداية</span><strong>82.7</strong></div>
+          <div><span>البداية</span><strong id="startWeightTop">82.7</strong></div>
           <div><span>الحالي</span><strong id="currentWeightTop">82.7</strong></div>
-          <div><span>الموعد</span><strong>15 يوليو</strong></div>
+          <div><span>الموعد</span><strong id="targetDateTop">15 يوليو</strong></div>
         </div>
+      </section>
+
+      <section class="profile-strip">
+        <div><small>مكان التدريب</small><strong id="profileLocation">المنزل</strong></div>
+        <div><small>مدة الجلسة</small><strong><span id="profileMinutes">30</span> دقيقة</strong></div>
+        <div><small>الأجهزة</small><strong id="profileEquipment">5 أجهزة</strong></div>
+        <button id="editProfileBtn">تعديل</button>
       </section>
 
       <section class="section-heading">
@@ -116,8 +124,8 @@
       </section>
 
       <section class="plan-section" id="planSection">
-        <h2>الخطة اليومية حتى 15 يوليو</h2>
-        <p class="plan-note">كل يوم له تاريخ ومستوى محدد، مع زيادة تدريجية ثم تخفيف الحمل قبل يوم الهدف.</p>
+        <h2>خطتك المتكيّفة</h2>
+        <p class="plan-note">تُنشأ الجلسات حسب هدفك ومدتها ومكان التدريب والأجهزة التي حددتها.</p>
         <div id="weeklyPlan"></div>
         <div class="water-guidance">
           <strong>هدف الماء في التطبيق: 2.0 لتر</strong>
@@ -191,6 +199,57 @@
       </label>
 
       <button class="primary-button" value="default">حفظ وتحديث الخطة</button>
+    </form>
+  </dialog>
+
+  <dialog id="profileDialog">
+    <form method="dialog" id="profileForm">
+      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <span class="eyebrow dialog-eyebrow">إعداد الخطة</span>
+      <h2>خصص تجربتك</h2>
+      <p>يمكن تغيير هذه الإعدادات في أي وقت، وستُعاد صياغة الجلسات تلقائياً.</p>
+
+      <div class="form-grid">
+        <label><span>وزن البداية (كجم)</span><input id="profileStartWeight" type="number" min="40" max="250" step="0.1" required></label>
+        <label><span>الوزن المستهدف (كجم)</span><input id="profileTargetWeight" type="number" min="40" max="250" step="0.1" required></label>
+        <label><span>تاريخ الوصول</span><input id="profileTargetDate" type="date" required></label>
+        <label><span>مدة الجلسة</span>
+          <select id="profileSessionMinutes">
+            <option value="20">20 دقيقة</option>
+            <option value="30">30 دقيقة</option>
+            <option value="40">40 دقيقة</option>
+            <option value="50">50 دقيقة</option>
+            <option value="60">60 دقيقة</option>
+          </select>
+        </label>
+      </div>
+
+      <fieldset>
+        <legend>أين تتمرن؟</legend>
+        <div class="choice-row location-choices">
+          <label><input type="radio" name="location" value="home" checked> المنزل</label>
+          <label><input type="radio" name="location" value="gym"> النادي</label>
+          <label><input type="radio" name="location" value="both"> كلاهما</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>الأجهزة المتوفرة</legend>
+        <div class="equipment-choices">
+          <label><input type="checkbox" name="equipment" value="treadmill"> جهاز مشي</label>
+          <label><input type="checkbox" name="equipment" value="bike"> دراجة ثابتة</label>
+          <label><input type="checkbox" name="equipment" value="bands"> حبال مقاومة</label>
+          <label><input type="checkbox" name="equipment" value="mat"> حصيرة</label>
+          <label><input type="checkbox" name="equipment" value="medicineBall"> كرة طبية</label>
+          <label><input type="checkbox" name="equipment" value="dumbbells"> دمبل</label>
+          <label><input type="checkbox" name="equipment" value="cableMachine"> جهاز كيبل</label>
+          <label><input type="checkbox" name="equipment" value="elliptical"> إليبتيكال</label>
+          <label><input type="checkbox" name="equipment" value="rowingMachine"> جهاز تجديف</label>
+          <label><input type="checkbox" name="equipment" value="bodyweight"> وزن الجسم فقط</label>
+        </div>
+      </fieldset>
+
+      <button class="primary-button" value="default">حفظ وبناء الخطة</button>
     </form>
   </dialog>
 

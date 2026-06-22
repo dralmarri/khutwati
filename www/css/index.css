@@ -52,6 +52,7 @@ button { cursor: pointer; }
 .brand h1 { margin: 0; font-size: 36px; letter-spacing: -.8px; }
 .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 .today-date { color: #49635a; font-size: 17px; }
+.settings-button { width: 40px; height: 40px; color: var(--green); border: 0; border-radius: 13px; background: var(--green-soft); font-size: 20px; }
 .goal-card {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -114,6 +115,21 @@ button { cursor: pointer; }
 .goal-stats div:last-child { text-align: left; }
 .goal-stats span { opacity: .75; font-size: 14px; }
 .goal-stats strong { font-size: 20px; }
+.profile-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+}
+.profile-strip small, .profile-strip strong { display: block; }
+.profile-strip small { color: var(--muted); font-size: 12px; }
+.profile-strip strong { margin-top: 3px; font-size: 14px; }
+.profile-strip button { padding: 9px 12px; color: var(--green); border: 0; border-radius: 11px; background: var(--green-soft); font-weight: 800; }
 .section-heading, .section-title-row {
   display: flex;
   align-items: end;
@@ -355,6 +371,14 @@ dialog p { color: var(--muted); }
 .close-dialog { position: absolute; top: 15px; left: 15px; width: 36px; height: 36px; border: 0; border-radius: 50%; font-size: 25px; }
 dialog label span { display: block; margin-bottom: 8px; font-weight: 700; }
 dialog input { width: 100%; padding: 15px; border: 1px solid #ccd4d0; border-radius: 14px; font-size: 22px; outline: none; }
+dialog select { width: 100%; padding: 14px; border: 1px solid #ccd4d0; border-radius: 14px; background: #fff; font-size: 16px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.form-grid label > span { display: block; margin-bottom: 7px; font-weight: 700; font-size: 14px; }
+.form-grid input { font-size: 16px; }
+.location-choices { grid-template-columns: repeat(3, 1fr); }
+.equipment-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.equipment-choices label { display: flex; align-items: center; gap: 7px; padding: 10px; border: 1px solid #dbe4df; border-radius: 11px; background: #f8faf9; font-size: 14px; }
+.equipment-choices input { width: auto; padding: 0; }
 dialog input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,116,84,.12); }
 .dialog-eyebrow { color: var(--green); }
 fieldset { margin: 20px 0; padding: 0; border: 0; }
@@ -401,6 +425,7 @@ legend { margin-bottom: 10px; font-weight: 800; }
   .brand h1 { font-size: 30px; }
   .brand p { display: none; }
   .today-date { font-size: 14px; }
+  .settings-button { width: 36px; height: 36px; }
   .goal-card { padding: 25px 20px; border-radius: 25px; }
   .days-box { min-width: 84px; }
   .days-box strong { font-size: 43px; }
@@ -414,4 +439,7 @@ legend { margin-bottom: 10px; font-weight: 800; }
   .quick-grid { grid-template-columns: 1fr; }
   .quick-card { min-height: 118px; }
   .exercise-details { margin-right: 0; }
+  .profile-strip { grid-template-columns: 1fr 1fr; }
+  .profile-strip button { grid-column: 1 / -1; }
+  .form-grid { grid-template-columns: 1fr; }
 }
