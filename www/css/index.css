@@ -53,6 +53,23 @@ button { cursor: pointer; }
 .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 .today-date { color: #49635a; font-size: 17px; }
 .settings-button { width: 40px; height: 40px; color: var(--green); border: 0; border-radius: 13px; background: var(--green-soft); font-size: 20px; }
+.app-page { animation: page-in .22s ease; }
+.app-page[hidden] { display: none !important; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-header {
+  margin: 6px 2px 20px;
+  padding: 22px 23px;
+  color: #fff;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #0a855f, #04583f);
+  box-shadow: 0 12px 30px rgba(3,91,65,.16);
+}
+.page-header span { color: #cceadd; font-weight: 700; }
+.page-header h2 { margin: 4px 0 5px; font-size: 34px; }
+.page-header p { margin: 0; color: rgba(255,255,255,.8); line-height: 1.6; }
 .goal-card {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -260,12 +277,23 @@ button { cursor: pointer; }
 .daily-tip strong { color: #8b6607; }
 .daily-tip p { margin: 5px 0 0; line-height: 1.7; color: #524c3e; }
 .progress-section, .plan-section { margin-top: 22px; scroll-margin-top: 20px; }
+.app-page > .progress-section, .app-page > .plan-section { margin-top: 0; }
 .progress-section h2, .plan-section h2 { margin: 0; }
 .progress-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 18px; }
 .progress-summary div { padding: 14px 8px; text-align: center; border-radius: 16px; background: #f4f7f5; }
 .progress-summary small { display: block; color: var(--muted); }
 .progress-summary strong { display: block; margin-top: 5px; color: var(--green-dark); }
 .history { margin-top: 16px; }
+.progress-weight-button {
+  width: 100%;
+  margin-top: 16px;
+  padding: 13px;
+  color: var(--green);
+  border: 1px solid #cfe4da;
+  border-radius: 14px;
+  background: var(--green-soft);
+  font-weight: 800;
+}
 .history-row { display: flex; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #eee; }
 .empty-state { color: var(--muted); text-align: center; }
 .plan-note { color: var(--muted); }
@@ -426,6 +454,8 @@ legend { margin-bottom: 10px; font-weight: 800; }
   .brand p { display: none; }
   .today-date { font-size: 14px; }
   .settings-button { width: 36px; height: 36px; }
+  .page-header { padding: 19px; border-radius: 21px; }
+  .page-header h2 { font-size: 29px; }
   .goal-card { padding: 25px 20px; border-radius: 25px; }
   .days-box { min-width: 84px; }
   .days-box strong { font-size: 43px; }

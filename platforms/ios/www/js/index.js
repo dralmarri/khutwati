@@ -501,6 +501,29 @@
     showToast.timeout = setTimeout(() => toast.classList.remove("show"), 2200);
   }
 
+  function showPage(pageName, updateHash = true) {
+    const validPage = ["today", "plan", "progress"].includes(pageName) ? pageName : "today";
+    document.querySelectorAll(".app-page").forEach(page => {
+      const isActive = page.dataset.page === validPage;
+      page.hidden = !isActive;
+      page.classList.toggle("active", isActive);
+    });
+    document.querySelectorAll(".bottom-nav button").forEach(button => {
+      const isActive = button.dataset.pageTarget === validPage;
+      button.classList.toggle("active", isActive);
+      if (isActive) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
+    if (updateHash) history.replaceState(null, "", `#${validPage}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openWeightDialog() {
+    $("weightInput").value = state.currentWeight.toFixed(1);
+    $("weightDialog").showModal();
+    setTimeout(() => $("weightInput").select(), 50);
+  }
+
   function updateTimerDisplay() {
     const minutes = Math.floor(timer.remaining / 60);
     const seconds = timer.remaining % 60;
@@ -543,11 +566,8 @@
     render();
   });
 
-  $("weightCard").addEventListener("click", () => {
-    $("weightInput").value = state.currentWeight.toFixed(1);
-    $("weightDialog").showModal();
-    setTimeout(() => $("weightInput").select(), 50);
-  });
+  $("weightCard").addEventListener("click", openWeightDialog);
+  $("progressWeightBtn").addEventListener("click", openWeightDialog);
 
   $("weightForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -602,7 +622,7 @@
     showToast("تم حفظ الإنجاز وتحديث الخطة القادمة ✦");
   });
 
-  $("showPlanBtn").addEventListener("click", () => $("planSection").scrollIntoView());
+  $("showPlanBtn").addEventListener("click", () => showPage("plan"));
 
   function openProfileDialog() {
     $("profileStartWeight").value = Number(state.profile.startWeight).toFixed(1);
@@ -659,11 +679,7 @@
 
   document.querySelectorAll(".bottom-nav button").forEach(button => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".bottom-nav button").forEach(item => item.classList.remove("active"));
-      button.classList.add("active");
-      const target = button.dataset.target;
-      if (target === "top") window.scrollTo({ top: 0 });
-      else $(target).scrollIntoView();
+      showPage(button.dataset.pageTarget);
     });
   });
 
@@ -683,6 +699,7 @@
 
   window.addEventListener("load", () => {
     render();
+    showPage(location.hash.replace("#", "") || "today", false);
     if ("serviceWorker" in navigator && !window.cordova) {
       navigator.serviceWorker.register("service-worker.js").catch(() => {});
     }
