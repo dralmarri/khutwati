@@ -14,6 +14,52 @@
   };
 
   const videoSearch = query => `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  const matBallGuides = [
+    {
+      requires: ["mat"],
+      title: "جسر الحوض على الحصيرة",
+      dose: "10 تكرارات ببطء",
+      steps: [
+        "استلقِ على ظهرك، اثنِ الركبتين وضع القدمين على الأرض بعرض الحوض، والذراعين بجانب الجسم.",
+        "شدّ البطن برفق واضغط بالكعبين، ثم ارفع الحوض حتى يصبح الجسم خطاً مائلاً من الكتفين إلى الركبتين.",
+        "اثبت ثانية واحدة واعصر عضلات المؤخرة، ثم أنزل الحوض ببطء من دون إسقاطه.",
+        "ازفر أثناء الرفع وخذ شهيقاً أثناء النزول. لا تبالغ في تقويس أسفل الظهر."
+      ]
+    },
+    {
+      requires: ["mat"],
+      title: "تمرين الطائر Bird Dog",
+      dose: "8 تكرارات لكل جهة",
+      steps: [
+        "ابدأ على اليدين والركبتين: اليدان تحت الكتفين والركبتان تحت الحوض، والظهر في وضع محايد.",
+        "مدّ الذراع اليمنى إلى الأمام والساق اليسرى إلى الخلف حتى تقتربا من مستوى الظهر.",
+        "اثبت ثانية أو ثانيتين مع إبقاء الحوض مواجهاً للأرض، ثم عد ببطء وبدّل الجهة.",
+        "لا ترفع الساق أعلى من الظهر ولا تحبس النفس. صغّر مدى الحركة إذا اهتز الجسم."
+      ]
+    },
+    {
+      requires: ["medicineBall"],
+      title: "ضغط الكرة الطبية بين الكفين",
+      dose: "8 ضغطات، كل ضغطة 5 ثوانٍ",
+      steps: [
+        "اجلس على كرسي أو قف باستقامة، وامسك الكرة أمام منتصف الصدر بكلتا اليدين مع ثني المرفقين.",
+        "اضغط الكفين نحو الكرة تدريجياً حتى تشعر بعمل عضلات الصدر والذراعين، من دون رفع الكتفين.",
+        "حافظ على الضغط 5 ثوانٍ مع تنفس طبيعي، ثم خفف الضغط ببطء.",
+        "استخدم ضغطاً متوسطاً؛ لا تدفع الكرة بعيداً ولا تحبس النفس."
+      ]
+    },
+    {
+      requires: ["medicineBall"],
+      title: "المشي في المكان مع الكرة",
+      dose: "30 ثانية",
+      steps: [
+        "قف قرب جدار أو كرسي ثابت، واحمل الكرة ملاصقة للصدر بكلتا اليدين.",
+        "ارفع ركبة واحدة قليلاً ثم أنزلها، وبدّل بين الساقين بإيقاع هادئ.",
+        "حافظ على الصدر مرفوعاً والبطن مشدوداً بخفة، ولا تمل بجسمك إلى الخلف.",
+        "توقف فوراً إذا فقدت التوازن، ويمكن تنفيذ الحركة من وضع الجلوس."
+      ]
+    }
+  ];
   const workoutTemplates = {
     treadmill: {
       title: "مشي متدرّج", equipment: "جهاز المشي", icon: "🏃",
@@ -250,7 +296,7 @@
     },
     matBall: {
       icon: "⚫", title: "الحصيرة والكرة الطبية",
-      detail: "جسر الحوض، تمرين الطائر، وضغط الكرة",
+      detail: "جسر الحوض، تمرين الطائر، ضغط الكرة، والمشي بها في المكان",
       link: ["تمارين الحصيرة والكرة الطبية", videoSearch("تمارين الكرة الطبية والحصيرة للمبتدئين medicine ball mat")]
     },
     dumbbells: {
@@ -375,7 +421,15 @@
       ...(selectedCardio[1] && secondCardioMinutes ? [{ key: selectedCardio[1], minutes: secondCardioMinutes }] : []),
       ...(strength ? [{ key: strengthKey, minutes: strength, note: `${rounds} ${rounds === 1 ? "جولة" : "جولات"} × ${reps} تكرارات لكل حركة.` }] : []),
       { key: "mobility", minutes: mobility, note: sectionLibrary.mobility.detail }
-    ].map(section => ({ ...sectionLibrary[section.key], ...section }));
+    ].map(section => {
+      const result = { ...sectionLibrary[section.key], ...section };
+      if (section.key === "matBall") {
+        result.instructions = matBallGuides.filter(guide =>
+          guide.requires.every(requiredEquipment => available.has(requiredEquipment))
+        );
+      }
+      return result;
+    });
 
     return { ...workout, totalMinutes: sections.reduce((sum, item) => sum + item.minutes, 0), sections, profile };
   }
@@ -392,6 +446,27 @@
   function refreshDailyWater() {
     const today = dateKey();
     if (state.water.date !== today) state.water = { date: today, count: 0 };
+  }
+
+  function renderExerciseGuide(section) {
+    if (!section.instructions?.length) return "";
+    return `
+      <details class="exercise-guide">
+        <summary>طريقة تنفيذ الحركات بالتفصيل</summary>
+        <div class="exercise-guide-content">
+          ${section.instructions.map(exercise => `
+            <article>
+              <div class="exercise-guide-title">
+                <strong>${exercise.title}</strong>
+                <span>${exercise.dose}</span>
+              </div>
+              <ol>${exercise.steps.map(step => `<li>${step}</li>`).join("")}</ol>
+            </article>
+          `).join("")}
+          <p class="exercise-guide-safety">نفّذ الحركات ببطء ومن دون ألم حاد. توقف إذا شعرت بدوار أو ألم في الظهر أو الركبة.</p>
+        </div>
+      </details>
+    `;
   }
 
   function render() {
@@ -436,6 +511,7 @@
         <span class="section-icon">${section.icon}</span>
         <span><strong>${section.title}</strong><small>${section.note || section.detail}</small></span>
         <span class="section-time">${section.minutes} د</span>
+        ${renderExerciseGuide(section)}
       </div>
     `).join("");
     if (!timer.running) timer.remaining = session.totalMinutes * 60;
@@ -468,6 +544,7 @@
               <div class="day-session-item">
                 <strong>${section.icon} ${section.title} · ${section.minutes} دقائق</strong>
                 <small>${section.note || section.detail}</small>
+                ${renderExerciseGuide(section)}
               </div>
             `).join("")}
           </div>
