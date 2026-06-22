@@ -252,6 +252,18 @@ button { cursor: pointer; }
 .exercise-guide-title span { color: #725715; font-size: 13px; font-weight: 800; }
 .exercise-guide ol { margin: 9px 0 0; padding-right: 21px; }
 .exercise-guide li { margin-bottom: 7px; color: #46514d; line-height: 1.65; }
+.exercise-video-button {
+  display: block;
+  margin-top: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #0b8a63, #056a4c);
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
 .exercise-guide-safety {
   margin: 0;
   padding: 10px 12px;
