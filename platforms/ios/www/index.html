@@ -51,6 +51,13 @@
       </section>
 
       <section class="workout-card">
+        <div class="adaptive-banner">
+          <span class="ai-mark">✦</span>
+          <div>
+            <strong id="adaptiveLevel">خطة متوازنة</strong>
+            <p id="adaptiveReason">سيتم تعديل الجلسات حسب إنجازك وتقييمك للجهد.</p>
+          </div>
+        </div>
         <div class="workout-info">
           <div class="equipment-icon" id="equipmentIcon" aria-hidden="true">🏃</div>
           <div class="workout-copy">
@@ -61,6 +68,7 @@
             <p id="workoutDescription">5 دقائق إحماء، ثم 25 دقيقة مشي سريع، و5 دقائق تهدئة.</p>
           </div>
         </div>
+        <div class="today-sections" id="todaySections"></div>
         <button class="primary-button" id="startWorkoutBtn">ابدأ التمرين</button>
         <button class="done-button hidden" id="completeWorkoutBtn">✓ تسجيل إكمال التمرين</button>
       </section>
@@ -153,6 +161,37 @@
         <button class="secondary-button" id="timerResetBtn">إعادة</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="feedbackDialog">
+    <form method="dialog" id="feedbackForm">
+      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <span class="eyebrow dialog-eyebrow">تقييم الجلسة</span>
+      <h2>كيف كان تمرين اليوم؟</h2>
+      <p>يستخدم محرك التكيّف إجابتك لإعداد الجلسات القادمة.</p>
+
+      <fieldset>
+        <legend>كم أكملت من الجلسة؟</legend>
+        <div class="choice-row">
+          <label><input type="radio" name="completion" value="50"> نصفها</label>
+          <label><input type="radio" name="completion" value="75"> معظمها</label>
+          <label><input type="radio" name="completion" value="100" checked> كاملة</label>
+        </div>
+      </fieldset>
+
+      <label class="range-label" for="effortInput">
+        <span>مستوى الجهد: <b id="effortValue">5</b> من 10</span>
+        <small>1 سهل جداً · 10 أقصى جهد</small>
+      </label>
+      <input id="effortInput" type="range" min="1" max="10" value="5">
+
+      <label class="pain-check">
+        <input id="painInput" type="checkbox">
+        شعرت بألم غير معتاد أثناء التمرين
+      </label>
+
+      <button class="primary-button" value="default">حفظ وتحديث الخطة</button>
+    </form>
   </dialog>
 
   <div class="toast" id="toast" role="status"></div>

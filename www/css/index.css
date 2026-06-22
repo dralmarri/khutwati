@@ -130,6 +130,28 @@ button { cursor: pointer; }
   background: #fff;
   box-shadow: var(--shadow);
 }
+.adaptive-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  color: #174e3b;
+  border: 1px solid #cde3d9;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #edf8f3, #fffaf0);
+}
+.ai-mark {
+  flex: 0 0 35px;
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  color: #fff;
+  border-radius: 12px;
+  background: var(--green);
+}
+.adaptive-banner p { margin: 3px 0 0; color: #557067; font-size: 13px; line-height: 1.5; }
 .workout-info { display: flex; align-items: center; gap: 18px; }
 .equipment-icon {
   flex: 0 0 118px;
@@ -152,6 +174,29 @@ button { cursor: pointer; }
   white-space: nowrap;
 }
 .workout-copy p { margin: 13px 0 0; color: #525b57; line-height: 1.8; }
+.today-sections { display: grid; gap: 9px; margin-top: 18px; }
+.session-section {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 11px;
+  align-items: center;
+  padding: 12px 13px;
+  border: 1px solid #e5ebe7;
+  border-radius: 15px;
+  background: #fafcfb;
+}
+.session-section .section-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--green-soft);
+  font-size: 21px;
+}
+.session-section strong, .session-section small { display: block; }
+.session-section small { margin-top: 3px; color: var(--muted); line-height: 1.45; }
+.session-section .section-time { color: var(--green); font-weight: 800; white-space: nowrap; }
 .primary-button, .done-button, .secondary-button {
   width: 100%;
   padding: 15px 18px;
@@ -242,6 +287,10 @@ button { cursor: pointer; }
   background: #f5f0e4;
 }
 .exercise-detail-title { display: flex; align-items: center; gap: 8px; color: var(--green-dark); }
+.day-session-list { display: grid; gap: 9px; margin: 12px 0; }
+.day-session-item { padding: 11px 12px; border-radius: 12px; background: #fff; border: 1px solid #e2e9e5; }
+.day-session-item strong { display: block; color: var(--green-dark); }
+.day-session-item small { display: block; margin-top: 4px; color: var(--muted); line-height: 1.5; }
 .exercise-details ol { margin: 12px 0 0; padding-right: 21px; }
 .exercise-details li { margin-bottom: 9px; color: #46514d; line-height: 1.65; }
 .day-progress-step { padding: 9px 11px; border-radius: 11px; background: #e8f4ee; }
@@ -307,6 +356,24 @@ dialog p { color: var(--muted); }
 dialog label span { display: block; margin-bottom: 8px; font-weight: 700; }
 dialog input { width: 100%; padding: 15px; border: 1px solid #ccd4d0; border-radius: 14px; font-size: 22px; outline: none; }
 dialog input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,116,84,.12); }
+.dialog-eyebrow { color: var(--green); }
+fieldset { margin: 20px 0; padding: 0; border: 0; }
+legend { margin-bottom: 10px; font-weight: 800; }
+.choice-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.choice-row label {
+  padding: 10px 5px;
+  text-align: center;
+  border: 1px solid #d9e2de;
+  border-radius: 12px;
+  background: #f8faf9;
+  font-size: 14px;
+}
+.choice-row input { width: auto; margin-left: 3px; padding: 0; }
+.range-label { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
+.range-label small { color: var(--muted); }
+#effortInput { padding: 0; margin: 13px 0 20px; accent-color: var(--green); }
+.pain-check { display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; background: #fff4f1; color: #8a3b31; }
+.pain-check input { width: auto; padding: 0; }
 .timer-modal { text-align: center; }
 .timer-value { margin: 20px 0 5px; direction: ltr; color: var(--green-dark); font-size: 70px; font-weight: 800; letter-spacing: 2px; }
 .timer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

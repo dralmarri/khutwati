@@ -157,7 +157,8 @@
     currentWeight: START_WEIGHT,
     weights: [],
     water: { date: "", count: 0 },
-    completedWorkouts: []
+    completedWorkouts: [],
+    workoutFeedback: {}
   };
 
   let state = loadState();
@@ -167,7 +168,12 @@
 
   function loadState() {
     try {
-      return { ...defaultState, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      return {
+        ...defaultState,
+        ...saved,
+        workoutFeedback: saved.workoutFeedback || {}
+      };
     } catch {
       return structuredClone(defaultState);
     }
@@ -195,6 +201,128 @@
       || dailyPlan[dailyPlan.length - 1];
   }
 
+  const sectionLibrary = {
+    warmup: {
+      icon: "🔥", title: "الإحماء والحركة",
+      detail: "مشي في المكان وتحريك الكتفين والكاحلين",
+      link: ["إحماء قبل التمرين", videoSearch("تمارين إحماء للمبتدئين قبل الرياضة")]
+    },
+    treadmill: {
+      icon: "🏃", title: "جهاز المشي",
+      detail: "مشي متدرّج بسرعة تسمح بالكلام",
+      link: ["المشي الصحيح على جهاز المشي", videoSearch("طريقة المشي الصحيحة على جهاز المشي للمبتدئين")]
+    },
+    bike: {
+      icon: "🚴", title: "الدراجة الثابتة",
+      detail: "مقاومة خفيفة إلى متوسطة مع ظهر مستقيم",
+      link: ["استخدام الدراجة الثابتة", videoSearch("طريقة استخدام الدراجة الثابتة للمبتدئين ضبط المقعد")]
+    },
+    resistance: {
+      icon: "💪", title: "الحبال وتمارين المقاومة",
+      detail: "سحب الحبل، دفع الصدر، وجلوس وقيام من كرسي",
+      link: ["تمارين حبال المقاومة", videoSearch("تمارين حبال المقاومة للمبتدئين resistance bands full body")]
+    },
+    matBall: {
+      icon: "⚫", title: "الحصيرة والكرة الطبية",
+      detail: "جسر الحوض، تمرين الطائر، وضغط الكرة",
+      link: ["تمارين الحصيرة والكرة الطبية", videoSearch("تمارين الكرة الطبية والحصيرة للمبتدئين medicine ball mat")]
+    },
+    mobility: {
+      icon: "🧘", title: "التهدئة والتمدد",
+      detail: "تمدد الساقين والظهر مع تنفس هادئ",
+      link: ["تمدد بعد التمرين", videoSearch("تمارين تمدد بعد الرياضة للمبتدئين")]
+    }
+  };
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function adaptiveProfile() {
+    const today = dateKey();
+    const recentDates = dailyPlan.filter(item => item.date <= today).slice(-7).map(item => item.date);
+    const recentFeedback = recentDates.map(date => state.workoutFeedback[date]).filter(Boolean);
+    const adherence = recentDates.length
+      ? recentDates.filter(date => state.workoutFeedback[date]?.completion >= 75).length / recentDates.length
+      : 0;
+    const avgEffort = recentFeedback.length
+      ? recentFeedback.reduce((sum, item) => sum + Number(item.effort || 5), 0) / recentFeedback.length
+      : 5;
+    const avgCompletion = recentFeedback.length
+      ? recentFeedback.reduce((sum, item) => sum + Number(item.completion || 0), 0) / recentFeedback.length
+      : 0;
+    const painRecently = recentFeedback.slice(-3).some(item => item.pain);
+    const recentWeights = state.weights
+      .map(item => ({ ...item, time: new Date(item.date).getTime() }))
+      .filter(item => Number.isFinite(item.time))
+      .sort((a, b) => a.time - b.time)
+      .slice(-7);
+    let weeklyWeightChange = null;
+    if (recentWeights.length >= 2) {
+      const first = recentWeights[0];
+      const last = recentWeights[recentWeights.length - 1];
+      const spanDays = (last.time - first.time) / 86400000;
+      if (spanDays >= 4) weeklyWeightChange = ((Number(first.weight) - Number(last.weight)) / spanDays) * 7;
+    }
+    let adjustment = 0;
+    let level = "خطة متوازنة";
+    let reason = "هذه هي نقطة البداية. قيّم الجلسة بعد الانتهاء ليصبح التكيف أدق.";
+
+    if (painRecently) {
+      adjustment = -2;
+      level = "استشفاء وحمل منخفض";
+      reason = "تم تخفيف الحمل لأنك سجلت ألماً غير معتاد مؤخراً.";
+    } else if (avgEffort >= 8) {
+      adjustment = -1;
+      level = "تخفيف ذكي";
+      reason = `متوسط الجهد الأخير ${avgEffort.toFixed(1)}/10؛ خفّضنا المدة والجولات.`;
+    } else if (recentFeedback.length >= 2 && (avgCompletion < 65 || adherence < 0.5)) {
+      adjustment = -1;
+      level = "عودة تدريجية";
+      reason = "تم تخفيف الجلسة لمساعدتك على استعادة الانتظام بعد جلسات غير مكتملة.";
+    } else if (recentFeedback.length >= 2 && avgEffort <= 6 && avgCompletion >= 85 && adherence >= 0.7) {
+      adjustment = 1;
+      level = "تقدّم محسوب";
+      reason = "إنجازك جيد والجهد مناسب؛ أضفنا دقائق قليلة أو جولة واحدة فقط.";
+    } else if (recentFeedback.length) {
+      level = "ثبات وتوازن";
+      reason = `إنجازك المتوسط ${Math.round(avgCompletion)}% والجهد ${avgEffort.toFixed(1)}/10؛ أبقينا الحمل مستقراً.`;
+    }
+
+    if (weeklyWeightChange !== null && weeklyWeightChange > 0.9 && adjustment > 0) {
+      adjustment = 0;
+      level = "ثبات للحفاظ على التعافي";
+      reason = "اتجاه الوزن ينخفض بسرعة؛ أبقينا الحمل ثابتاً ولم نضف جهداً جديداً.";
+    }
+
+    return { adjustment, level, reason, adherence, avgEffort, avgCompletion, weeklyWeightChange };
+  }
+
+  function buildSession(workout) {
+    const profile = adaptiveProfile();
+    const isRecovery = workout.type === "rest" || workout.type === "recovery";
+    const baseMinutes = workout.minutes || 15;
+    const total = clamp(baseMinutes + profile.adjustment * 5, isRecovery ? 15 : 20, isRecovery ? 25 : 50);
+    const warmup = isRecovery ? 3 : 4;
+    const mobility = isRecovery ? 7 : 5;
+    const strength = isRecovery ? 0 : Math.max(6, Math.round(total * 0.26));
+    const cardio = total - warmup - mobility - strength;
+    const treadmill = Math.max(3, Math.ceil(cardio * (workout.type === "bikeBands" ? 0.4 : 0.58)));
+    const bike = Math.max(3, cardio - treadmill);
+    const resistanceKey = workout.type === "matBall" ? "matBall" : "resistance";
+    const rounds = profile.adjustment > 0 ? 3 : profile.adjustment < 0 ? 1 : 2;
+    const reps = profile.adjustment > 0 ? 12 : profile.adjustment < 0 ? 8 : 10;
+    const sections = [
+      { key: "warmup", minutes: warmup, note: sectionLibrary.warmup.detail },
+      { key: workout.type === "bikeBands" ? "bike" : "treadmill", minutes: workout.type === "bikeBands" ? bike : treadmill, note: workout.type === "intervals" ? "تناوب بين دقيقتين مريحتين ودقيقة أسرع." : undefined },
+      { key: workout.type === "bikeBands" ? "treadmill" : "bike", minutes: workout.type === "bikeBands" ? treadmill : bike },
+      ...(strength ? [{ key: resistanceKey, minutes: strength, note: `${rounds} ${rounds === 1 ? "جولة" : "جولات"} × ${reps} تكرارات لكل حركة.` }] : []),
+      { key: "mobility", minutes: mobility, note: sectionLibrary.mobility.detail }
+    ].map(section => ({ ...sectionLibrary[section.key], ...section }));
+
+    return { ...workout, totalMinutes: sections.reduce((sum, item) => sum + item.minutes, 0), sections, profile };
+  }
+
   function planDate(item) {
     const date = new Date(`${item.date}T12:00:00`);
     return {
@@ -217,6 +345,7 @@
     const total = START_WEIGHT - TARGET_WEIGHT;
     const progress = Math.min(100, Math.max(0, (lost / total) * 100));
     const workout = currentWorkout();
+    const session = buildSession(workout);
 
     $("todayDate").textContent = formatArabicDate(now);
     $("daysRemaining").textContent = new Intl.NumberFormat("ar").format(days);
@@ -229,44 +358,57 @@
     $("lostWeight").textContent = `${lost.toFixed(1)} كجم`;
     $("remainingWeight").textContent = `${Math.max(0, state.currentWeight - TARGET_WEIGHT).toFixed(1)} كجم`;
     $("completedCount").textContent = state.completedWorkouts.length;
-    $("workoutTitle").textContent = workout.title;
-    $("equipmentIcon").textContent = workout.icon;
-    $("equipmentName").textContent = workout.equipment;
-    $("workoutMinutes").textContent = workout.minutes;
-    $("workoutDescription").textContent = workout.minutes
-      ? `${workout.description} ${workout.adjustments[0]} توقف عند الشعور بألم غير معتاد.`
-      : "يوم استشفاء: اهتم بالنوم والماء وحركة خفيفة.";
-    timer.remaining = workout.minutes * 60;
+    $("workoutTitle").textContent = "جلسة متكاملة";
+    $("equipmentIcon").textContent = "✦";
+    $("equipmentName").textContent = "مشي + دراجة + مقاومة";
+    $("workoutMinutes").textContent = session.totalMinutes;
+    $("workoutDescription").textContent = `${workout.phase}. ${session.profile.reason}`;
+    $("adaptiveLevel").textContent = session.profile.level;
+    $("adaptiveReason").textContent = session.profile.reason;
+    $("todaySections").innerHTML = session.sections.map(section => `
+      <div class="session-section">
+        <span class="section-icon">${section.icon}</span>
+        <span><strong>${section.title}</strong><small>${section.note || section.detail}</small></span>
+        <span class="section-time">${section.minutes} د</span>
+      </div>
+    `).join("");
+    if (!timer.running) timer.remaining = session.totalMinutes * 60;
     updateTimerDisplay();
 
-    const completedToday = state.completedWorkouts.includes(dateKey());
-    $("completeWorkoutBtn").classList.toggle("hidden", completedToday || !workout.minutes);
+    const completedToday = Boolean(state.workoutFeedback[dateKey()]);
+    $("completeWorkoutBtn").classList.toggle("hidden", completedToday);
     $("completeWorkoutBtn").textContent = completedToday ? "✓ تم إكمال تمرين اليوم" : "✓ تسجيل إكمال التمرين";
-    $("startWorkoutBtn").classList.toggle("hidden", !workout.minutes);
+    $("startWorkoutBtn").classList.remove("hidden");
 
     $("weeklyPlan").innerHTML = dailyPlan.map(item => {
       const label = planDate(item);
       const isToday = item.date === dateKey();
+      const itemSession = buildSession(item);
       return `
       <details class="plan-day-details"${isToday ? " open" : ""}>
         <summary class="plan-day">
           <span class="day-badge" dir="ltr">${label.shortDay}</span>
           <span>
-            <strong>${label.day} ${label.date} · ${item.title}</strong>
-            <small>${item.phase} · ${item.minutes ? `${item.minutes} دقيقة` : "راحة"} · ${item.equipment}</small>
+            <strong>${label.day} ${label.date} · جلسة متكاملة</strong>
+            <small>${item.phase} · ${itemSession.totalMinutes} دقيقة · ${itemSession.profile.level}</small>
           </span>
           <span class="plan-toggle" aria-hidden="true">⌄</span>
         </summary>
         <div class="exercise-details">
           <img class="exercise-image" src="${item.image}" alt="رسم توضيحي لتمرين ${item.title}" loading="lazy">
-          <div class="exercise-detail-title"><span>${item.icon}</span><strong>طريقة أداء التمرين</strong></div>
-          <ol>
-            ${item.steps.map(step => `<li>${step}</li>`).join("")}
-            ${item.adjustments.map(step => `<li class="day-progress-step"><strong>مستوى هذا اليوم:</strong> ${step}</li>`).join("")}
-          </ol>
+          <div class="exercise-detail-title"><span>✦</span><strong>أقسام الجلسة</strong></div>
+          <div class="day-session-list">
+            ${itemSession.sections.map(section => `
+              <div class="day-session-item">
+                <strong>${section.icon} ${section.title} · ${section.minutes} دقائق</strong>
+                <small>${section.note || section.detail}</small>
+              </div>
+            `).join("")}
+          </div>
+          <p class="day-progress-step"><strong>تدرّج اليوم:</strong> ${item.adjustments[0]}</p>
           <div class="video-links">
             <strong>شاهد طريقة الأداء</strong>
-            ${item.links.map(([title, url]) => `<a href="${url}" target="_blank" rel="noopener">${title} ↗</a>`).join("")}
+            ${itemSession.sections.map(section => section.link).filter(Boolean).filter((link, index, all) => all.findIndex(item => item[1] === link[1]) === index).map(([title, url]) => `<a href="${url}" target="_blank" rel="noopener">${title} ↗</a>`).join("")}
           </div>
         </div>
       </details>
@@ -360,18 +502,38 @@
   $("timerToggleBtn").addEventListener("click", toggleTimer);
   $("timerResetBtn").addEventListener("click", () => {
     stopTimer();
-    timer.remaining = currentWorkout().minutes * 60;
+    timer.remaining = buildSession(currentWorkout()).totalMinutes * 60;
     $("timerStatus").textContent = "جاهز للبدء";
     $("timerToggleBtn").textContent = "ابدأ";
     updateTimerDisplay();
   });
 
   $("completeWorkoutBtn").addEventListener("click", () => {
+    $("effortInput").value = "5";
+    $("effortValue").textContent = "5";
+    $("painInput").checked = false;
+    $("feedbackDialog").showModal();
+  });
+
+  $("effortInput").addEventListener("input", event => {
+    $("effortValue").textContent = event.target.value;
+  });
+
+  $("feedbackForm").addEventListener("submit", event => {
+    event.preventDefault();
     const today = dateKey();
+    const completion = Number(document.querySelector('input[name="completion"]:checked')?.value || 100);
+    state.workoutFeedback[today] = {
+      completion,
+      effort: Number($("effortInput").value),
+      pain: $("painInput").checked,
+      savedAt: new Date().toISOString()
+    };
     if (!state.completedWorkouts.includes(today)) state.completedWorkouts.push(today);
     saveState();
+    $("feedbackDialog").close();
     render();
-    showToast("تم تسجيل تمرين اليوم، بطل! 🎉");
+    showToast("تم حفظ الإنجاز وتحديث الخطة القادمة ✦");
   });
 
   $("showPlanBtn").addEventListener("click", () => $("planSection").scrollIntoView());

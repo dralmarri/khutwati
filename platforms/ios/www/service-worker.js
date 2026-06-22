@@ -1,4 +1,4 @@
-const CACHE = "khutwati-v2";
+const CACHE = "khutwati-v3";
 const ASSETS = [
   "./",
   "index.html",
