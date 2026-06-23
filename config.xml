@@ -17,6 +17,7 @@
   <preference name="Fullscreen" value="false" />
   <preference name="AndroidXEnabled" value="true" />
   <preference name="deployment-target" value="13.0" />
+  <icon src="resources/icon.png" />
   <platform name="ios">
     <allow-intent href="itms:*" />
     <allow-intent href="itms-apps:*" />

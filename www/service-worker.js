@@ -1,11 +1,14 @@
-const CACHE = "khutwati-v11";
+const CACHE = "khutwati-v12";
 const ASSETS = [
   "./",
   "index.html",
   "css/index.css",
   "js/index.js",
   "manifest.webmanifest",
-  "icons/app-icon.svg",
+  "icons/app-icon-192.png",
+  "icons/app-icon-512.png",
+  "icons/app-icon-1024.png",
+  "icons/apple-touch-icon.png",
   "images/exercises/treadmill.png",
   "images/exercises/bike-bands.png",
   "images/exercises/mat-ball.png",

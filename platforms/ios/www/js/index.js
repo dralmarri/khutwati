@@ -1275,7 +1275,7 @@
     render();
     showPage(location.hash.replace("#", "") || "today", false);
     if ("serviceWorker" in navigator && !window.cordova) {
-      navigator.serviceWorker.register("service-worker.js?v=11").catch(() => {});
+      navigator.serviceWorker.register("service-worker.js?v=12").catch(() => {});
     }
   });
 })();
