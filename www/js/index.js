@@ -13,6 +13,19 @@
     equipment: ["treadmill", "bike", "bands", "mat", "medicineBall"],
     durationOverrides: {}
   };
+  const DEFAULT_NUTRITION = {
+    age: "",
+    height: "",
+    sex: "male",
+    activity: 1.375,
+    dietStyle: "lowCarb",
+    meals: []
+  };
+  const DEFAULT_AI = {
+    endpoint: "",
+    lastPlan: null,
+    appliedCalorieAdjustment: 0
+  };
 
   const videoSearch = query => `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
   const matBallGuides = [
@@ -186,7 +199,9 @@
     water: { date: "", count: 0 },
     completedWorkouts: [],
     workoutFeedback: {},
-    profile: DEFAULT_PROFILE
+    profile: DEFAULT_PROFILE,
+    nutrition: DEFAULT_NUTRITION,
+    ai: DEFAULT_AI
   };
 
   let state = loadState();
@@ -210,7 +225,9 @@
         ...defaultState,
         ...saved,
         workoutFeedback: saved.workoutFeedback || {},
-        profile: { ...DEFAULT_PROFILE, ...(saved.profile || {}) }
+        profile: { ...DEFAULT_PROFILE, ...(saved.profile || {}) },
+        nutrition: { ...DEFAULT_NUTRITION, ...(saved.nutrition || {}), meals: saved.nutrition?.meals || [] },
+        ai: { ...DEFAULT_AI, ...(saved.ai || {}) }
       };
     } catch {
       return structuredClone(defaultState);
@@ -466,6 +483,219 @@
     if (state.water.date !== today) state.water = { date: today, count: 0 };
   }
 
+  function nutritionTargets() {
+    const age = Number(state.nutrition.age);
+    const height = Number(state.nutrition.height);
+    const weight = Number(state.currentWeight);
+    const activity = Number(state.nutrition.activity);
+    if (!age || !height || !weight || !activity) return null;
+
+    const sexAdjustment = state.nutrition.sex === "female" ? -161 : 5;
+    const bmr = 10 * weight + 6.25 * height - 5 * age + sexAdjustment;
+    const maintenance = Math.round(bmr * activity);
+    const targetDate = new Date(`${state.profile.targetDate}T23:59:59`);
+    const days = Math.max(1, Math.ceil((targetDate - new Date()) / 86400000));
+    const weightToLose = Math.max(0, weight - Number(state.profile.targetWeight));
+    const requestedDeficit = Math.round((weightToLose * 7700) / days);
+    const appliedDeficit = Math.min(500, requestedDeficit);
+    const aiAdjustment = clamp(Number(state.ai.appliedCalorieAdjustment || 0), -200, 200);
+    const calories = Math.max(Math.round(bmr), maintenance - appliedDeficit + aiAdjustment);
+    const protein = Math.round(weight * 1.4);
+    const carbRatio = state.nutrition.dietStyle === "lowCarb" ? 0.20 : 0.45;
+    const carbs = Math.round((calories * carbRatio) / 4);
+    const proteinCalories = protein * 4;
+    const fat = Math.max(30, Math.round((calories - proteinCalories - carbs * 4) / 9));
+    return { bmr: Math.round(bmr), maintenance, calories, protein, carbs, fat, requestedDeficit, appliedDeficit, aiAdjustment };
+  }
+
+  function todayMeals() {
+    const today = dateKey();
+    return state.nutrition.meals.filter(meal => meal.date === today);
+  }
+
+  function renderNutrition() {
+    const targets = nutritionTargets();
+    const meals = todayMeals();
+    const totals = meals.reduce((sum, meal) => ({
+      calories: sum.calories + Number(meal.calories || 0),
+      protein: sum.protein + Number(meal.protein || 0),
+      carbs: sum.carbs + Number(meal.carbs || 0),
+      fat: sum.fat + Number(meal.fat || 0)
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    $("caloriesConsumed").textContent = Math.round(totals.calories);
+    $("proteinConsumed").textContent = Math.round(totals.protein);
+    $("carbsConsumed").textContent = Math.round(totals.carbs);
+    $("fatConsumed").textContent = Math.round(totals.fat);
+
+    if (targets) {
+      const remaining = Math.max(0, targets.calories - totals.calories);
+      const progress = Math.min(100, (totals.calories / targets.calories) * 100);
+      $("calorieTarget").textContent = targets.calories;
+      $("maintenanceCalories").textContent = targets.maintenance;
+      $("caloriesRemaining").textContent = Math.round(remaining);
+      $("proteinTarget").textContent = targets.protein;
+      $("carbsTarget").textContent = targets.carbs;
+      $("fatTarget").textContent = targets.fat;
+      document.querySelector(".calorie-ring").style.setProperty("--calorie-progress", `${progress}%`);
+      $("calorieCalculationStatus").textContent = targets.requestedDeficit > 500
+        ? "خُفّض العجز إلى حد معتدل؛ قد يحتاج الهدف مدة أطول."
+        : targets.aiAdjustment
+          ? `تقدير يومي مع تعديل المدرب الذكي ${targets.aiAdjustment > 0 ? "+" : ""}${targets.aiAdjustment} سعرة.`
+          : "تقدير يومي مبني على بياناتك ونشاطك.";
+    } else {
+      ["calorieTarget", "maintenanceCalories", "caloriesRemaining", "proteinTarget", "carbsTarget", "fatTarget"].forEach(id => $(id).textContent = "—");
+      document.querySelector(".calorie-ring").style.setProperty("--calorie-progress", "0%");
+      $("calorieCalculationStatus").textContent = "أكمل العمر والطول لحساب الهدف";
+    }
+
+    $("mealHistory").innerHTML = meals.length
+      ? meals.slice().reverse().map(meal => `
+          <div class="meal-row">
+            <span><strong>${meal.name}</strong><small>${Math.round(meal.calories)} سعرة · بروتين ${meal.protein || 0}غ · نشويات ${meal.carbs || 0}غ · دهون ${meal.fat || 0}غ</small></span>
+            <button data-meal-id="${meal.id}" aria-label="حذف ${meal.name}">حذف</button>
+          </div>
+        `).join("")
+      : '<p class="empty-state">لم تُسجل وجبات اليوم بعد.</p>';
+  }
+
+  function aiProgressSummary() {
+    const targets = nutritionTargets();
+    const meals = todayMeals();
+    const mealTotals = meals.reduce((sum, meal) => ({
+      calories: sum.calories + Number(meal.calories || 0),
+      protein: sum.protein + Number(meal.protein || 0),
+      carbs: sum.carbs + Number(meal.carbs || 0),
+      fat: sum.fat + Number(meal.fat || 0)
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    const recentWeights = state.weights.slice(-14).map(item => ({
+      date: item.date,
+      weight: Number(item.weight)
+    }));
+    const recentFeedback = Object.entries(state.workoutFeedback)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-10)
+      .map(([date, value]) => ({
+        date,
+        completion: Number(value.completion || 0),
+        effort: Number(value.effort || 0),
+        pain: Boolean(value.pain)
+      }));
+    const session = buildSession(currentWorkout());
+
+    return {
+      date: dateKey(),
+      profile: {
+        current_weight_kg: Number(state.currentWeight),
+        start_weight_kg: Number(state.profile.startWeight),
+        target_weight_kg: Number(state.profile.targetWeight),
+        target_date: state.profile.targetDate,
+        location: state.profile.location,
+        equipment: state.profile.equipment,
+        preferred_session_minutes: Number(state.profile.sessionMinutes)
+      },
+      today_session: session.sections.map(section => ({
+        key: section.key,
+        title: section.title,
+        minutes: section.minutes
+      })),
+      recent_weights: recentWeights,
+      recent_workout_feedback: recentFeedback,
+      nutrition: {
+        diet_style: state.nutrition.dietStyle,
+        calculated_targets: targets,
+        today_consumed: mealTotals,
+        meals_logged_today: meals.length
+      },
+      safety: {
+        request_conservative_progression: true,
+        do_not_diagnose_or_change_medication: true
+      }
+    };
+  }
+
+  function signedValue(value, suffix) {
+    const number = Number(value || 0);
+    return `${number > 0 ? "+" : ""}${number} ${suffix}`;
+  }
+
+  function showAiPlan(plan) {
+    state.ai.lastPlan = plan;
+    saveState();
+    $("aiPlanSummary").textContent = plan.summary;
+    $("aiPlanAdjustments").innerHTML = `
+      <div><small>مدة الجلسة</small><strong>${signedValue(plan.session_minutes_adjustment, "دقائق")}</strong></div>
+      <div><small>هدف السعرات</small><strong>${signedValue(plan.calorie_adjustment, "سعرة")}</strong></div>
+    `;
+    $("aiRecommendations").replaceChildren(...(plan.recommendations || []).map(item => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      return li;
+    }));
+    $("aiSafetyNote").textContent = plan.safety_note;
+    $("aiPlanDialog").showModal();
+  }
+
+  async function requestAiPlan() {
+    const endpoint = state.ai.endpoint.trim() || (window.cordova ? "" : "/api/ai-plan");
+    if (!endpoint) {
+      showToast("أضف رابط خادم الذكاء الاصطناعي من إعداد الحساب");
+      openNutritionSettings();
+      return;
+    }
+    if (!nutritionTargets()) {
+      showToast("أكمل العمر والطول أولاً ليكون التحليل أدق");
+      openNutritionSettings();
+      return;
+    }
+
+    const button = $("requestAiPlanBtn");
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "جارٍ تحليل تقدمك…";
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aiProgressSummary())
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.plan) throw new Error(data.error || "تعذر إعداد الاقتراح");
+      showAiPlan(data.plan);
+    } catch (error) {
+      showToast(error.message || "تعذر الاتصال بالمدرب الذكي");
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+
+  function applyAiPlan() {
+    const plan = state.ai.lastPlan;
+    if (!plan) return;
+    state.profile.sessionMinutes = clamp(
+      Number(state.profile.sessionMinutes) + Number(plan.session_minutes_adjustment || 0),
+      20,
+      60
+    );
+    const allowedSections = new Set(buildSession(currentWorkout()).sections.map(section => section.key));
+    state.profile.durationOverrides = {
+      ...(state.profile.durationOverrides || {})
+    };
+    for (const section of plan.section_minutes || []) {
+      if (allowedSections.has(section.key)) {
+        state.profile.durationOverrides[section.key] = clamp(Math.round(Number(section.minutes)), 1, 90);
+      }
+    }
+    state.ai.appliedCalorieAdjustment = clamp(Number(plan.calorie_adjustment || 0), -200, 200);
+    dailyPlan = [];
+    resetTimerSession();
+    saveState();
+    $("aiPlanDialog").close();
+    render();
+    showToast("تم تطبيق توصيات المدرب الذكي ✦");
+  }
+
   function renderExerciseGuide(section) {
     if (!section.instructions?.length) return "";
     return `
@@ -491,6 +721,7 @@
   function render() {
     refreshDailyWater();
     generateDailyPlan();
+    renderNutrition();
     const now = new Date();
     const targetDate = new Date(`${state.profile.targetDate}T23:59:59`);
     const days = Math.max(0, Math.ceil((targetDate - now) / 86400000));
@@ -602,7 +833,7 @@
   }
 
   function showPage(pageName, updateHash = true) {
-    const validPage = ["today", "plan", "progress"].includes(pageName) ? pageName : "today";
+    const validPage = ["today", "plan", "nutrition", "progress"].includes(pageName) ? pageName : "today";
     document.querySelectorAll(".app-page").forEach(page => {
       const isActive = page.dataset.page === validPage;
       page.hidden = !isActive;
@@ -839,6 +1070,72 @@
 
   $("showPlanBtn").addEventListener("click", () => showPage("plan"));
 
+  function openNutritionSettings() {
+    $("nutritionAge").value = state.nutrition.age;
+    $("nutritionHeight").value = state.nutrition.height;
+    $("nutritionSex").value = state.nutrition.sex;
+    $("nutritionActivity").value = String(state.nutrition.activity);
+    $("nutritionDietStyle").value = state.nutrition.dietStyle;
+    $("aiEndpoint").value = state.ai.endpoint;
+    $("nutritionSettingsDialog").showModal();
+  }
+
+  $("nutritionSettingsBtn").addEventListener("click", openNutritionSettings);
+  $("nutritionSettingsForm").addEventListener("submit", event => {
+    event.preventDefault();
+    state.nutrition = {
+      ...state.nutrition,
+      age: Number($("nutritionAge").value),
+      height: Number($("nutritionHeight").value),
+      sex: $("nutritionSex").value,
+      activity: Number($("nutritionActivity").value),
+      dietStyle: $("nutritionDietStyle").value
+    };
+    state.ai.endpoint = $("aiEndpoint").value.trim();
+    saveState();
+    $("nutritionSettingsDialog").close();
+    render();
+    showToast("تم حساب هدف السعرات اليومي");
+  });
+
+  $("addMealBtn").addEventListener("click", () => {
+    $("mealForm").reset();
+    ["mealProtein", "mealCarbs", "mealFat"].forEach(id => $(id).value = "0");
+    $("mealDialog").showModal();
+  });
+
+  $("mealForm").addEventListener("submit", event => {
+    event.preventDefault();
+    state.nutrition.meals.push({
+      id: `${Date.now()}`,
+      date: dateKey(),
+      name: $("mealName").value.trim(),
+      calories: Number($("mealCalories").value),
+      protein: Number($("mealProtein").value || 0),
+      carbs: Number($("mealCarbs").value || 0),
+      fat: Number($("mealFat").value || 0)
+    });
+    saveState();
+    $("mealDialog").close();
+    render();
+    showToast("تم تسجيل الوجبة");
+  });
+
+  $("mealHistory").addEventListener("click", event => {
+    const button = event.target.closest("[data-meal-id]");
+    if (!button) return;
+    state.nutrition.meals = state.nutrition.meals.filter(meal => meal.id !== button.dataset.mealId);
+    saveState();
+    render();
+    showToast("تم حذف الوجبة");
+  });
+
+  $("requestAiPlanBtn").addEventListener("click", requestAiPlan);
+  $("applyAiPlanBtn").addEventListener("click", applyAiPlan);
+  ["closeAiPlanBtn", "dismissAiPlanBtn"].forEach(id => {
+    $(id).addEventListener("click", () => $("aiPlanDialog").close());
+  });
+
   function openProfileDialog() {
     $("profileStartWeight").value = Number(state.profile.startWeight).toFixed(1);
     $("profileTargetWeight").value = Number(state.profile.targetWeight).toFixed(1);
@@ -918,7 +1215,7 @@
     render();
     showPage(location.hash.replace("#", "") || "today", false);
     if ("serviceWorker" in navigator && !window.cordova) {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+      navigator.serviceWorker.register("service-worker.js?v=10").catch(() => {});
     }
   });
 })();

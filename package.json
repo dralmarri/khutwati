@@ -5,7 +5,7 @@
   "private": true,
   "description": "خطوتي - تطبيق عربي لمتابعة الوزن والرياضة",
   "scripts": {
-    "web:serve": "node preview-server.js",
+    "web:serve": "node --env-file-if-exists=.env preview-server.js",
     "ios:add": "cordova platform add ios",
     "ios:prepare": "cordova prepare ios",
     "ios:build": "cordova build ios",
