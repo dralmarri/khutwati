@@ -903,6 +903,13 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  document.querySelectorAll(".cancel-dialog-button").forEach(button => {
+    button.addEventListener("click", () => {
+      const dialog = button.closest("dialog");
+      if (dialog?.open) dialog.close("cancel");
+    });
+  });
+
   function openWeightDialog() {
     $("weightInput").value = state.currentWeight.toFixed(1);
     $("weightDialog").showModal();
@@ -1275,7 +1282,7 @@
     render();
     showPage(location.hash.replace("#", "") || "today", false);
     if ("serviceWorker" in navigator && !window.cordova) {
-      navigator.serviceWorker.register("service-worker.js?v=12").catch(() => {});
+      navigator.serviceWorker.register("service-worker.js?v=13").catch(() => {});
     }
   });
 })();

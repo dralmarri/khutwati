@@ -201,6 +201,10 @@
           </div>
           <button class="primary-button" id="requestAiPlanBtn">حلّل تقدمي واقترح خطة</button>
           <small>لن تُطبّق أي توصية إلا بعد أن تراجعها وتضغط «تطبيق».</small>
+          <details class="ai-coach-explanation">
+            <summary>كيف يعمل المدرب الذكي؟</summary>
+            <p>يبني التطبيق خطتك الأساسية من هدف الوزن والمدة ومكان التدريب والأجهزة المتوفرة. ثم يراجع المدرب الذكي سجلات الوزن والتمارين والجهد والألم والتغذية والحالات الصحية التي أدخلتها، ويقترح تعديل مدة الجلسة ومدة كل قسم والسعرات ضمن حدود احترازية.</p>
+          </details>
         </section>
 
         <section class="low-carb-guide">
@@ -226,7 +230,7 @@
 
   <dialog id="weightDialog">
     <form method="dialog" id="weightForm">
-      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <button type="button" class="close-dialog cancel-dialog-button" aria-label="إغلاق دون حفظ">×</button>
       <h2>تسجيل الوزن</h2>
       <p>اكتب وزنك الحالي بالكيلوجرام</p>
       <label>
@@ -263,7 +267,7 @@
 
   <dialog id="feedbackDialog">
     <form method="dialog" id="feedbackForm">
-      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <button type="button" class="close-dialog cancel-dialog-button" aria-label="إغلاق دون حفظ">×</button>
       <span class="eyebrow dialog-eyebrow">تقييم الجلسة</span>
       <h2>كيف كان تمرين اليوم؟</h2>
       <p>يستخدم محرك التكيّف إجابتك لإعداد الجلسات القادمة.</p>
@@ -294,7 +298,7 @@
 
   <dialog id="profileDialog">
     <form method="dialog" id="profileForm">
-      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <button type="button" class="close-dialog cancel-dialog-button" aria-label="إغلاق دون حفظ">×</button>
       <span class="eyebrow dialog-eyebrow">إعداد الخطة</span>
       <h2>خصص تجربتك</h2>
       <p>يمكن تغيير هذه الإعدادات في أي وقت، وستُعاد صياغة الجلسات تلقائياً.</p>
@@ -345,7 +349,7 @@
 
   <dialog id="nutritionSettingsDialog">
     <form method="dialog" id="nutritionSettingsForm">
-      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <button type="button" class="close-dialog cancel-dialog-button" aria-label="إغلاق دون حفظ">×</button>
       <span class="eyebrow dialog-eyebrow">حاسبة السعرات</span>
       <h2>بيانات الحساب</h2>
       <p>النتيجة تقديرية وليست وصفة طبية.</p>
@@ -408,7 +412,7 @@
 
   <dialog id="mealDialog">
     <form method="dialog" id="mealForm">
-      <button class="close-dialog" value="cancel" aria-label="إغلاق">×</button>
+      <button type="button" class="close-dialog cancel-dialog-button" aria-label="إغلاق دون حفظ">×</button>
       <span class="eyebrow dialog-eyebrow">سجل الطعام</span>
       <h2>إضافة وجبة</h2>
       <div class="form-grid">

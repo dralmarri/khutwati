@@ -394,6 +394,9 @@ button { cursor: pointer; }
 .ai-coach-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; color: #6b4b00; border-radius: 14px; background: #ffd66d; font-size: 23px; }
 .ai-coach-card .primary-button { color: var(--green-dark); background: #fff; }
 .ai-coach-card > small { display: block; margin-top: 10px; color: #cce4dc; text-align: center; line-height: 1.5; }
+.ai-coach-explanation { margin-top: 13px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .2); }
+.ai-coach-explanation summary { color: #fff; cursor: pointer; font-weight: 800; }
+.ai-coach-explanation p { margin: 9px 0 0; color: #d9eee7; line-height: 1.7; }
 .ai-coach-card .primary-button[disabled] { opacity: .7; cursor: wait; }
 .ai-plan-modal { padding: 4px; }
 .ai-plan-summary { padding: 14px; border-radius: 14px; background: var(--green-soft); line-height: 1.7; }
