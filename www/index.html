@@ -95,7 +95,7 @@
           <span class="quick-icon water-icon">💧</span>
           <span>
             <small>الماء اليوم</small>
-            <strong><b id="waterLiters">0.0</b> / 2.0 <em>لتر</em></strong>
+            <strong><b id="waterLiters">0.0</b> / <b id="waterTargetDisplay">2.0</b> <em>لتر</em></strong>
             <i><b id="waterCups">0 أكواب</b> · الكوب 250 مل</i>
           </span>
         </button>
@@ -122,8 +122,8 @@
           <p class="plan-note">تُنشأ الجلسات حسب هدفك ومدتها ومكان التدريب والأجهزة التي حددتها.</p>
           <div id="weeklyPlan"></div>
           <div class="water-guidance">
-            <strong>هدف الماء في التطبيق: 2.0 لتر</strong>
-            <p>يعادل 8 أكواب × 250 مل. هذا هدف إرشادي؛ قد تحتاج أكثر مع حرارة الكويت أو التعرق والرياضة. إذا وصف لك الطبيب تقييداً للسوائل فاتبع تعليماته.</p>
+            <strong id="waterGuidanceTitle">هدف الماء في التطبيق: 2.0 لتر</strong>
+            <p id="waterGuidanceText">يعادل 8 أكواب × 250 مل. هذا هدف إرشادي؛ قد تحتاج أكثر مع حرارة الكويت أو التعرق والرياضة. إذا وصف لك الطبيب تقييداً للسوائل فاتبع تعليماته.</p>
           </div>
           <div class="safety-note">
             <strong>تنبيه للسلامة</strong>
@@ -186,6 +186,7 @@
             <div><span>النشويات</span><strong><b id="carbsConsumed">0</b> / <b id="carbsTarget">—</b> غ</strong></div>
             <div><span>الدهون</span><strong><b id="fatConsumed">0</b> / <b id="fatTarget">—</b> غ</strong></div>
           </div>
+          <p class="health-aware-note hidden" id="healthAwareNote"></p>
           <div class="meal-history" id="mealHistory"><p class="empty-state">لم تُسجل وجبات اليوم بعد.</p></div>
         </section>
 
@@ -364,6 +365,21 @@
         <label><span>النمط الغذائي</span>
           <select id="nutritionDietStyle"><option value="lowCarb">منخفض النشويات</option><option value="balanced">متوازن</option></select>
         </label>
+        <fieldset class="wide-field health-conditions">
+          <legend>حالات صحية تؤثر في الخطة (اختياري)</legend>
+          <p>اختر ما ينطبق فقط. يستخدمها التطبيق للاحتياط، وليس للتشخيص.</p>
+          <div class="equipment-choices">
+            <label><input type="checkbox" name="healthCondition" value="kidney"> مرض كلى أو كرياتينين مرتفع</label>
+            <label><input type="checkbox" name="healthCondition" value="dialysis"> غسيل كلوي</label>
+            <label><input type="checkbox" name="healthCondition" value="diabetes"> سكري</label>
+            <label><input type="checkbox" name="healthCondition" value="hypertension"> ضغط دم مرتفع</label>
+            <label><input type="checkbox" name="healthCondition" value="heart"> مرض بالقلب</label>
+            <label><input type="checkbox" name="healthCondition" value="jointPain"> إصابة أو ألم بالمفاصل</label>
+          </div>
+          <label class="wide-field"><span>حالة أخرى أو ملاحظة للطبيب</span>
+            <input id="otherHealthCondition" type="text" maxlength="120" placeholder="اختياري">
+          </label>
+        </fieldset>
         <label class="wide-field"><span>رابط خادم الذكاء الاصطناعي (اختياري لتطبيق iOS)</span>
           <input id="aiEndpoint" type="url" inputmode="url" placeholder="https://example.com/api/ai-plan">
           <small>اتركه فارغاً عند تشغيل نسخة الويب محلياً.</small>

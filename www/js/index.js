@@ -19,6 +19,8 @@
     sex: "male",
     activity: 1.375,
     dietStyle: "lowCarb",
+    healthConditions: [],
+    otherHealthCondition: "",
     meals: []
   };
   const DEFAULT_AI = {
@@ -226,7 +228,12 @@
         ...saved,
         workoutFeedback: saved.workoutFeedback || {},
         profile: { ...DEFAULT_PROFILE, ...(saved.profile || {}) },
-        nutrition: { ...DEFAULT_NUTRITION, ...(saved.nutrition || {}), meals: saved.nutrition?.meals || [] },
+        nutrition: {
+          ...DEFAULT_NUTRITION,
+          ...(saved.nutrition || {}),
+          healthConditions: saved.nutrition?.healthConditions || [],
+          meals: saved.nutrition?.meals || []
+        },
         ai: { ...DEFAULT_AI, ...(saved.ai || {}) }
       };
     } catch {
@@ -385,11 +392,20 @@
     let adjustment = 0;
     let level = "خطة متوازنة";
     let reason = "هذه هي نقطة البداية. قيّم الجلسة بعد الانتهاء ليصبح التكيف أدق.";
+    const healthConditions = new Set(state.nutrition.healthConditions || []);
 
     if (painRecently) {
       adjustment = -2;
       level = "استشفاء وحمل منخفض";
       reason = "تم تخفيف الحمل لأنك سجلت ألماً غير معتاد مؤخراً.";
+    } else if (healthConditions.has("heart")) {
+      adjustment = -1;
+      level = "حمل محافظ لصحة القلب";
+      reason = "تم اختيار مرض بالقلب؛ لن يزيد التطبيق الحمل تلقائياً، ويجب الالتزام بتوجيه الطبيب وحدود الجهد المسموحة.";
+    } else if (healthConditions.has("jointPain")) {
+      adjustment = -1;
+      level = "تمرين منخفض الصدمات";
+      reason = "تم اختيار إصابة أو ألم بالمفاصل؛ خُفّض الحمل مع تفضيل الدراجة والحركات المضبوطة دون ألم.";
     } else if (avgEffort >= 8) {
       adjustment = -1;
       level = "تخفيف ذكي";
@@ -500,12 +516,27 @@
     const appliedDeficit = Math.min(500, requestedDeficit);
     const aiAdjustment = clamp(Number(state.ai.appliedCalorieAdjustment || 0), -200, 200);
     const calories = Math.max(Math.round(bmr), maintenance - appliedDeficit + aiAdjustment);
-    const protein = Math.round(weight * 1.4);
+    const conditions = new Set(state.nutrition.healthConditions || []);
+    const kidneyConcern = conditions.has("kidney");
+    const dialysis = conditions.has("dialysis");
+    const protein = kidneyConcern && !dialysis ? null : Math.round(weight * (dialysis ? 1.2 : 1.4));
     const carbRatio = state.nutrition.dietStyle === "lowCarb" ? 0.20 : 0.45;
     const carbs = Math.round((calories * carbRatio) / 4);
-    const proteinCalories = protein * 4;
+    const proteinCalories = (protein || Math.round(weight * 0.8)) * 4;
     const fat = Math.max(30, Math.round((calories - proteinCalories - carbs * 4) / 9));
-    return { bmr: Math.round(bmr), maintenance, calories, protein, carbs, fat, requestedDeficit, appliedDeficit, aiAdjustment };
+    return {
+      bmr: Math.round(bmr),
+      maintenance,
+      calories,
+      protein,
+      carbs,
+      fat,
+      requestedDeficit,
+      appliedDeficit,
+      aiAdjustment,
+      kidneyConcern,
+      dialysis
+    };
   }
 
   function todayMeals() {
@@ -534,7 +565,7 @@
       $("calorieTarget").textContent = targets.calories;
       $("maintenanceCalories").textContent = targets.maintenance;
       $("caloriesRemaining").textContent = Math.round(remaining);
-      $("proteinTarget").textContent = targets.protein;
+      $("proteinTarget").textContent = targets.protein ?? "يحدده الطبيب";
       $("carbsTarget").textContent = targets.carbs;
       $("fatTarget").textContent = targets.fat;
       document.querySelector(".calorie-ring").style.setProperty("--calorie-progress", `${progress}%`);
@@ -543,10 +574,22 @@
         : targets.aiAdjustment
           ? `تقدير يومي مع تعديل المدرب الذكي ${targets.aiAdjustment > 0 ? "+" : ""}${targets.aiAdjustment} سعرة.`
           : "تقدير يومي مبني على بياناتك ونشاطك.";
+      const healthNote = $("healthAwareNote");
+      if (targets.kidneyConcern && !targets.dialysis) {
+        healthNote.textContent = "بسبب اختيار مشكلة بالكلى أو ارتفاع الكرياتينين، أوقف التطبيق هدف البروتين التلقائي. حدده طبيب الكلى أو اختصاصي التغذية حسب eGFR والبوتاسيوم والفوسفور، ولا ترفع البروتين أو السوائل تلقائياً.";
+        healthNote.classList.remove("hidden");
+      } else if (targets.dialysis) {
+        healthNote.textContent = "احتياجات البروتين والسوائل أثناء الغسيل الكلوي تختلف؛ القيمة المعروضة تقديرية فقط ويجب اعتماد تعليمات فريق الغسيل.";
+        healthNote.classList.remove("hidden");
+      } else {
+        healthNote.classList.add("hidden");
+        healthNote.textContent = "";
+      }
     } else {
       ["calorieTarget", "maintenanceCalories", "caloriesRemaining", "proteinTarget", "carbsTarget", "fatTarget"].forEach(id => $(id).textContent = "—");
       document.querySelector(".calorie-ring").style.setProperty("--calorie-progress", "0%");
       $("calorieCalculationStatus").textContent = "أكمل العمر والطول لحساب الهدف";
+      $("healthAwareNote").classList.add("hidden");
     }
 
     $("mealHistory").innerHTML = meals.length
@@ -603,6 +646,9 @@
       recent_workout_feedback: recentFeedback,
       nutrition: {
         diet_style: state.nutrition.dietStyle,
+        age: Number(state.nutrition.age),
+        health_conditions: state.nutrition.healthConditions,
+        other_health_condition: state.nutrition.otherHealthCondition,
         calculated_targets: targets,
         today_consumed: mealTotals,
         meals_logged_today: meals.length
@@ -740,8 +786,16 @@
     $("currentWeightTop").textContent = state.currentWeight.toFixed(1);
     $("currentWeightCard").textContent = state.currentWeight.toFixed(1);
     const waterLiters = state.water.count * WATER_CUP_LITERS;
+    const kidneyCondition = (state.nutrition.healthConditions || []).some(condition => ["kidney", "dialysis", "heart"].includes(condition));
     $("waterLiters").textContent = waterLiters.toFixed(2).replace(/\.00$/, ".0");
+    $("waterTargetDisplay").textContent = kidneyCondition ? "حسب الطبيب" : WATER_TARGET_LITERS.toFixed(1);
     $("waterCups").textContent = `${state.water.count} أكواب`;
+    $("waterGuidanceTitle").textContent = kidneyCondition
+      ? "هدف السوائل: يحدده الطبيب"
+      : `هدف الماء في التطبيق: ${WATER_TARGET_LITERS.toFixed(1)} لتر`;
+    $("waterGuidanceText").textContent = kidneyCondition
+      ? "عند وجود مشكلة بالكلى أو غسيل كلوي أو مرض بالقلب، لا يرفع التطبيق كمية الماء تلقائياً. اتبع الكمية التي حددها الطبيب، لأن الحاجة قد تكون أقل أو أكثر حسب التحاليل والأدوية والتورم."
+      : "يعادل 8 أكواب × 250 مل. هذا هدف إرشادي؛ قد تحتاج أكثر مع حرارة الكويت أو التعرق والرياضة. إذا وصف لك الطبيب تقييداً للسوائل فاتبع تعليماته.";
     $("lostWeight").textContent = `${lost.toFixed(1)} كجم`;
     $("remainingWeight").textContent = `${Math.max(0, state.currentWeight - Number(state.profile.targetWeight)).toFixed(1)} كجم`;
     $("completedCount").textContent = state.completedWorkouts.length;
@@ -1076,6 +1130,10 @@
     $("nutritionSex").value = state.nutrition.sex;
     $("nutritionActivity").value = String(state.nutrition.activity);
     $("nutritionDietStyle").value = state.nutrition.dietStyle;
+    document.querySelectorAll('input[name="healthCondition"]').forEach(input => {
+      input.checked = state.nutrition.healthConditions.includes(input.value);
+    });
+    $("otherHealthCondition").value = state.nutrition.otherHealthCondition;
     $("aiEndpoint").value = state.ai.endpoint;
     $("nutritionSettingsDialog").showModal();
   }
@@ -1089,7 +1147,9 @@
       height: Number($("nutritionHeight").value),
       sex: $("nutritionSex").value,
       activity: Number($("nutritionActivity").value),
-      dietStyle: $("nutritionDietStyle").value
+      dietStyle: $("nutritionDietStyle").value,
+      healthConditions: Array.from(document.querySelectorAll('input[name="healthCondition"]:checked')).map(input => input.value),
+      otherHealthCondition: $("otherHealthCondition").value.trim()
     };
     state.ai.endpoint = $("aiEndpoint").value.trim();
     saveState();
@@ -1215,7 +1275,7 @@
     render();
     showPage(location.hash.replace("#", "") || "today", false);
     if ("serviceWorker" in navigator && !window.cordova) {
-      navigator.serviceWorker.register("service-worker.js?v=10").catch(() => {});
+      navigator.serviceWorker.register("service-worker.js?v=11").catch(() => {});
     }
   });
 })();

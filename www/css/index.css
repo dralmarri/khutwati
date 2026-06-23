@@ -411,6 +411,10 @@ button { cursor: pointer; }
 .low-carb-guide p { color: #575044; }
 .low-carb-guide ul { padding-right: 20px; color: #4d554f; }
 .nutrition-warning { padding: 11px; border-radius: 11px; background: #fff0dc; color: #8a4e19 !important; font-size: 13px; }
+.health-aware-note { margin: 14px 0 0; padding: 12px; color: #733e12; border: 1px solid #efd1a7; border-radius: 13px; background: #fff6e8; line-height: 1.65; }
+.health-conditions { margin-top: 5px; }
+.health-conditions > p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.health-conditions .wide-field { display: block; margin-top: 12px; }
 .wide-field { grid-column: 1 / -1; }
 .plan-note { color: var(--muted); }
 .plan-day-details { border-bottom: 1px solid #eee; }
