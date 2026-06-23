@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "www");
 const port = Number(process.env.PORT || 4173);
 const openAiModel = process.env.OPENAI_MODEL || "gpt-5.5";
+const aiSubscriptionProductId = "com.khutwati.ai.monthly";
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -54,9 +56,76 @@ function sendJson(response, status, value) {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Access-Control-Allow-Headers": "Content-Type, X-Khutwati-Entitlement"
   });
   response.end(JSON.stringify(value));
+}
+
+function signEntitlement(payload) {
+  if (!process.env.ENTITLEMENT_SECRET) return "";
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", process.env.ENTITLEMENT_SECRET).update(encoded).digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
+function verifyEntitlement(token) {
+  if (!token || !process.env.ENTITLEMENT_SECRET) return false;
+  const [encoded, providedSignature] = token.split(".");
+  if (!encoded || !providedSignature) return false;
+  const expected = createHmac("sha256", process.env.ENTITLEMENT_SECRET).update(encoded).digest();
+  const provided = Buffer.from(providedSignature, "base64url");
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+    return payload.productId === aiSubscriptionProductId
+      && Number(payload.expiresAt || 0) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+async function verifySubscription(request, response) {
+  if (!process.env.SUBSCRIPTION_VALIDATOR_URL || !process.env.ENTITLEMENT_SECRET) {
+    sendJson(response, 503, {
+      error: "الاشتراكات لم تُربط بخادم التحقق بعد."
+    });
+    return;
+  }
+  try {
+    const input = await readJson(request);
+    if (input.productId !== aiSubscriptionProductId || !input.transactionId) {
+      sendJson(response, 400, { error: "بيانات الاشتراك غير صالحة." });
+      return;
+    }
+    const validatorResponse = await fetch(process.env.SUBSCRIPTION_VALIDATOR_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.SUBSCRIPTION_VALIDATOR_TOKEN
+          ? { "Authorization": `Bearer ${process.env.SUBSCRIPTION_VALIDATOR_TOKEN}` }
+          : {})
+      },
+      body: JSON.stringify(input)
+    });
+    const validation = await validatorResponse.json();
+    const expiresAt = new Date(validation.expiresAt || 0).getTime();
+    if (!validatorResponse.ok || !validation.active || validation.productId !== aiSubscriptionProductId || expiresAt <= Date.now()) {
+      sendJson(response, 403, { error: "لا يوجد اشتراك فعال للمدرب الذكي." });
+      return;
+    }
+    const entitlementToken = signEntitlement({
+      productId: aiSubscriptionProductId,
+      transactionId: input.transactionId,
+      expiresAt
+    });
+    sendJson(response, 200, {
+      active: true,
+      entitlementToken,
+      expiresAt: new Date(expiresAt).toISOString()
+    });
+  } catch {
+    sendJson(response, 500, { error: "تعذر التحقق من اشتراك App Store." });
+  }
 }
 
 async function readJson(request) {
@@ -81,6 +150,12 @@ function extractResponseText(data) {
 }
 
 async function createAiPlan(request, response) {
+  if (!verifyEntitlement(request.headers["x-khutwati-entitlement"])) {
+    sendJson(response, 402, {
+      error: "يلزم اشتراك فعال لاستخدام المدرب الذكي."
+    });
+    return;
+  }
   if (!process.env.OPENAI_API_KEY) {
     sendJson(response, 503, {
       error: "خدمة المدرب الذكي غير مفعلة. أضف OPENAI_API_KEY إلى ملف .env على الخادم."
@@ -147,10 +222,23 @@ http.createServer(async (request, response) => {
     if (requestUrl.pathname === "/api/ai-plan" && request.method === "OPTIONS") {
       response.writeHead(204, {
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, X-Khutwati-Entitlement",
+        "Access-Control-Allow-Methods": "POST, OPTIONS"
+      });
+      response.end();
+      return;
+    }
+    if (requestUrl.pathname === "/api/subscription/verify" && request.method === "OPTIONS") {
+      response.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Methods": "POST, OPTIONS"
       });
       response.end();
+      return;
+    }
+    if (requestUrl.pathname === "/api/subscription/verify" && request.method === "POST") {
+      await verifySubscription(request, response);
       return;
     }
     if (requestUrl.pathname === "/api/ai-plan" && request.method === "POST") {

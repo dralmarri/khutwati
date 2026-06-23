@@ -18,6 +18,11 @@
 		90CBB52A2C06968500B805A2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CBB5292C06968500B805A2 /* SceneDelegate.swift */; };
 		90CBB52C2C06968500B805A2 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CBB52B2C06968500B805A2 /* ViewController.swift */; };
 		90D82ABD2CF19AEA001383CF /* CordovaPlugins in Frameworks */ = {isa = PBXBuildFile; productRef = 90D82ABC2CF19AEA001383CF /* CordovaPlugins */; };
+		B492B37CA57D46EDAE60FED1 /* InAppPurchase.m in Sources */ = {isa = PBXBuildFile; fileRef = 6123197F7AED41B18E49C102 /* InAppPurchase.m */; };
+		24A89201BF64403BB79B431C /* SKProduct+LocalizedPrice.m in Sources */ = {isa = PBXBuildFile; fileRef = 974AFE4CB13D42778205D96E /* SKProduct+LocalizedPrice.m */; };
+		7762510197E94178B9BD8C54 /* SKProductDiscount+LocalizedPrice.m in Sources */ = {isa = PBXBuildFile; fileRef = BD564A4BA62743949499ACD4 /* SKProductDiscount+LocalizedPrice.m */; };
+		55A6B61B7EC24274808D8ACD /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F2441F3889540509123A226 /* StoreKit.framework */; };
+		3CD67113A91B4935B1717704 /* StoreKit2Plugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 767FF38690F747B38ECBAF93 /* StoreKit2Plugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,6 +61,14 @@
 		90EB30402C6DD87600CEEB2F /* build-release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = "build-release.xcconfig"; path = "cordova/build-release.xcconfig"; sourceTree = SOURCE_ROOT; };
 		90F7E7002C6EB78900AD84C2 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		90F7E7012C6EB78900AD84C2 /* MainViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainViewController.h; sourceTree = "<group>"; };
+		6123197F7AED41B18E49C102 /* InAppPurchase.m */ = {isa = PBXFileReference; name = "InAppPurchase.m"; path = "cordova-plugin-purchase/InAppPurchase.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; includeInIndex = 0; };
+		974AFE4CB13D42778205D96E /* SKProduct+LocalizedPrice.m */ = {isa = PBXFileReference; name = "SKProduct+LocalizedPrice.m"; path = "cordova-plugin-purchase/SKProduct+LocalizedPrice.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; includeInIndex = 0; };
+		BD564A4BA62743949499ACD4 /* SKProductDiscount+LocalizedPrice.m */ = {isa = PBXFileReference; name = "SKProductDiscount+LocalizedPrice.m"; path = "cordova-plugin-purchase/SKProductDiscount+LocalizedPrice.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; includeInIndex = 0; };
+		E1197A64630E4E8E9AB10D97 /* InAppPurchase.h */ = {isa = PBXFileReference; name = "InAppPurchase.h"; path = "cordova-plugin-purchase/InAppPurchase.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; includeInIndex = 0; };
+		22B338B0EBE94EB78C2EA3EC /* SKProduct+LocalizedPrice.h */ = {isa = PBXFileReference; name = "SKProduct+LocalizedPrice.h"; path = "cordova-plugin-purchase/SKProduct+LocalizedPrice.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; includeInIndex = 0; };
+		70963CE88ABA4CFEA255BD3A /* SKProductDiscount+LocalizedPrice.h */ = {isa = PBXFileReference; name = "SKProductDiscount+LocalizedPrice.h"; path = "cordova-plugin-purchase/SKProductDiscount+LocalizedPrice.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; includeInIndex = 0; };
+		0F2441F3889540509123A226 /* StoreKit.framework */ = {isa = PBXFileReference; name = "StoreKit.framework"; path = "System/Library/Frameworks/StoreKit.framework"; sourceTree = SDKROOT; lastKnownFileType = wrapper.framework; includeInIndex = 0; };
+		767FF38690F747B38ECBAF93 /* StoreKit2Plugin.swift */ = {isa = PBXFileReference; name = "StoreKit2Plugin.swift"; path = "cordova-plugin-purchase-storekit2/StoreKit2Plugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +78,7 @@
 			files = (
 				90A914592CA3D370003DB979 /* Cordova in Frameworks */,
 				90D82ABD2CF19AEA001383CF /* CordovaPlugins in Frameworks */,
+				55A6B61B7EC24274808D8ACD /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,6 +95,13 @@
 		907F98542C06B85800D2D242 /* Plugins */ = {
 			isa = PBXGroup;
 			children = (
+				6123197F7AED41B18E49C102 /* InAppPurchase.m */,
+				974AFE4CB13D42778205D96E /* SKProduct+LocalizedPrice.m */,
+				BD564A4BA62743949499ACD4 /* SKProductDiscount+LocalizedPrice.m */,
+				E1197A64630E4E8E9AB10D97 /* InAppPurchase.h */,
+				22B338B0EBE94EB78C2EA3EC /* SKProduct+LocalizedPrice.h */,
+				70963CE88ABA4CFEA255BD3A /* SKProductDiscount+LocalizedPrice.h */,
+				767FF38690F747B38ECBAF93 /* StoreKit2Plugin.swift */,
 			);
 			path = Plugins;
 			sourceTree = "<group>";
@@ -88,6 +109,7 @@
 		907F98602C06B8F000D2D242 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				0F2441F3889540509123A226 /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -242,6 +264,10 @@
 				90CBB52C2C06968500B805A2 /* ViewController.swift in Sources */,
 				90CBB5282C06968500B805A2 /* AppDelegate.swift in Sources */,
 				90CBB52A2C06968500B805A2 /* SceneDelegate.swift in Sources */,
+				B492B37CA57D46EDAE60FED1 /* InAppPurchase.m in Sources */,
+				24A89201BF64403BB79B431C /* SKProduct+LocalizedPrice.m in Sources */,
+				7762510197E94178B9BD8C54 /* SKProductDiscount+LocalizedPrice.m in Sources */,
+				3CD67113A91B4935B1717704 /* StoreKit2Plugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -4,8 +4,54 @@
     "uninstalled": []
   },
   "config_munge": {
-    "files": {}
+    "files": {
+      "config.xml": {
+        "parents": {
+          "/*": [
+            {
+              "xml": "<feature name=\"InAppPurchase\"><param name=\"ios-package\" value=\"InAppPurchase\" /><param name=\"onload\" value=\"true\" /></feature>",
+              "count": 1
+            },
+            {
+              "xml": "<feature name=\"StoreKit2Plugin\"><param name=\"ios-package\" value=\"StoreKit2Plugin\" /><param name=\"onload\" value=\"true\" /></feature>",
+              "count": 1
+            }
+          ]
+        }
+      }
+    }
   },
-  "installed_plugins": {},
-  "dependent_plugins": {}
+  "installed_plugins": {
+    "cordova-plugin-purchase": {
+      "PACKAGE_NAME": "com.khutwati.app"
+    },
+    "cordova-plugin-purchase-storekit2": {
+      "SWIFTVERSION": "5.0",
+      "PACKAGE_NAME": "com.khutwati.app"
+    }
+  },
+  "dependent_plugins": {},
+  "modules": [
+    {
+      "id": "cordova-plugin-purchase.CdvPurchase",
+      "file": "plugins/cordova-plugin-purchase/www/store.js",
+      "pluginId": "cordova-plugin-purchase",
+      "clobbers": [
+        "CdvPurchase",
+        "store"
+      ]
+    },
+    {
+      "id": "cordova-plugin-purchase-storekit2.CdvPurchaseStoreKit2",
+      "file": "plugins/cordova-plugin-purchase-storekit2/www/storekit2-plugin.js",
+      "pluginId": "cordova-plugin-purchase-storekit2",
+      "clobbers": [
+        "CdvPurchaseStoreKit2"
+      ]
+    }
+  ],
+  "plugin_metadata": {
+    "cordova-plugin-purchase": "13.17.2",
+    "cordova-plugin-purchase-storekit2": "1.0.5"
+  }
 }

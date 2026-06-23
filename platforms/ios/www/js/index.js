@@ -4,6 +4,7 @@
   const STORAGE_KEY = "khutwati-state-v1";
   const WATER_CUP_LITERS = 0.25;
   const WATER_TARGET_LITERS = 2;
+  const AI_SUBSCRIPTION_PRODUCT_ID = "com.khutwati.ai.monthly";
   const DEFAULT_PROFILE = {
     startWeight: 82.7,
     targetWeight: 77.5,
@@ -27,6 +28,13 @@
     endpoint: "",
     lastPlan: null,
     appliedCalorieAdjustment: 0
+  };
+  const DEFAULT_SUBSCRIPTION = {
+    active: false,
+    productId: AI_SUBSCRIPTION_PRODUCT_ID,
+    price: "",
+    entitlementToken: "",
+    expiresAt: ""
   };
 
   const videoSearch = query => `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
@@ -203,7 +211,8 @@
     workoutFeedback: {},
     profile: DEFAULT_PROFILE,
     nutrition: DEFAULT_NUTRITION,
-    ai: DEFAULT_AI
+    ai: DEFAULT_AI,
+    subscription: DEFAULT_SUBSCRIPTION
   };
 
   let state = loadState();
@@ -234,7 +243,8 @@
           healthConditions: saved.nutrition?.healthConditions || [],
           meals: saved.nutrition?.meals || []
         },
-        ai: { ...DEFAULT_AI, ...(saved.ai || {}) }
+        ai: { ...DEFAULT_AI, ...(saved.ai || {}) },
+        subscription: { ...DEFAULT_SUBSCRIPTION, ...(saved.subscription || {}) }
       };
     } catch {
       return structuredClone(defaultState);
@@ -243,6 +253,129 @@
 
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function subscriptionIsActive() {
+    if (!state.subscription.active || !state.subscription.entitlementToken) return false;
+    if (!state.subscription.expiresAt) return true;
+    return new Date(state.subscription.expiresAt).getTime() > Date.now();
+  }
+
+  function renderSubscription() {
+    const active = subscriptionIsActive();
+    if (!active && state.subscription.active) {
+      state.subscription.active = false;
+      state.subscription.entitlementToken = "";
+    }
+    $("subscriptionPrice").textContent = state.subscription.price || "يظهر السعر من App Store";
+    $("subscriptionStatus").textContent = active
+      ? `✓ اشتراك المدرب الذكي فعال${state.subscription.expiresAt ? ` حتى ${formatArabicDate(new Date(state.subscription.expiresAt))}` : ""}`
+      : "الخطة العادية مجانية · المدرب الذكي غير مشترك";
+    $("subscriptionStatus").classList.toggle("active", active);
+    $("requestAiPlanBtn").textContent = active
+      ? "حلّل تقدمي واقترح خطة"
+      : "اشترك واستخدم المدرب الذكي";
+  }
+
+  function subscriptionEndpoint() {
+    const aiEndpoint = state.ai.endpoint.trim() || (window.cordova ? "" : "/api/ai-plan");
+    if (!aiEndpoint) return "";
+    return aiEndpoint.replace(/\/api\/ai-plan\/?$/, "/api/subscription/verify");
+  }
+
+  async function verifySubscriptionTransaction(transactionId) {
+    const endpoint = subscriptionEndpoint();
+    if (!endpoint || !transactionId) throw new Error("تعذر التحقق من الاشتراك على الخادم");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transactionId,
+        productId: AI_SUBSCRIPTION_PRODUCT_ID,
+        platform: "apple"
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.active || !data.entitlementToken) {
+      throw new Error(data.error || "لم يتم تأكيد الاشتراك");
+    }
+    state.subscription = {
+      ...state.subscription,
+      active: true,
+      entitlementToken: data.entitlementToken,
+      expiresAt: data.expiresAt || ""
+    };
+    saveState();
+    renderSubscription();
+    $("subscriptionDialog").close();
+    showToast("تم تفعيل اشتراك المدرب الذكي ✦");
+  }
+
+  function initializePurchases() {
+    if (!window.CdvPurchase || !window.cordova) return;
+    const { store, ProductType, Platform, ErrorCode } = window.CdvPurchase;
+    store.register([{
+      id: AI_SUBSCRIPTION_PRODUCT_ID,
+      platform: Platform.APPLE_APPSTORE,
+      type: ProductType.PAID_SUBSCRIPTION
+    }]);
+    store.when()
+      .productUpdated(product => {
+        if (product.id !== AI_SUBSCRIPTION_PRODUCT_ID) return;
+        const offer = product.getOffer?.();
+        state.subscription.price = offer?.pricingPhases?.[0]?.price || product.pricing?.price || "";
+        saveState();
+        renderSubscription();
+      })
+      .approved(async transaction => {
+        try {
+          await verifySubscriptionTransaction(transaction.transactionId);
+          transaction.verify();
+        } catch (error) {
+          showToast(error.message || "تعذر تفعيل الاشتراك");
+          transaction.finish?.();
+        }
+      })
+      .verified(receipt => receipt.finish());
+    store.error(error => {
+      if (error.code !== ErrorCode.PAYMENT_CANCELLED) showToast("تعذر الاتصال بمتجر App Store");
+    });
+    store.initialize([{ platform: Platform.APPLE_APPSTORE, options: { needAppReceipt: true } }]);
+  }
+
+  function openSubscriptionDialog() {
+    renderSubscription();
+    $("subscriptionDialog").showModal();
+  }
+
+  async function purchaseSubscription() {
+    if (!window.CdvPurchase || !window.cordova) {
+      showToast("الاشتراك متاح داخل تطبيق iOS بعد إعداد المنتج في App Store");
+      return;
+    }
+    const product = window.CdvPurchase.store.get(AI_SUBSCRIPTION_PRODUCT_ID);
+    const offer = product?.getOffer?.();
+    if (!offer) {
+      showToast("لم يتوفر منتج الاشتراك من App Store بعد");
+      return;
+    }
+    const error = await offer.order();
+    if (error && error.code !== window.CdvPurchase.ErrorCode.PAYMENT_CANCELLED) {
+      showToast("تعذر بدء الاشتراك");
+    }
+  }
+
+  async function restoreSubscription() {
+    if (!window.CdvPurchase || !window.cordova) {
+      showToast("استعادة المشتريات متاحة داخل تطبيق iOS");
+      return;
+    }
+    try {
+      await window.CdvPurchase.store.restorePurchases();
+      showToast("تم طلب استعادة المشتريات");
+    } catch {
+      showToast("تعذرت استعادة المشتريات");
+    }
   }
 
   function dateKey(date = new Date()) {
@@ -683,6 +816,10 @@
   }
 
   async function requestAiPlan() {
+    if (!subscriptionIsActive()) {
+      openSubscriptionDialog();
+      return;
+    }
     const endpoint = state.ai.endpoint.trim() || (window.cordova ? "" : "/api/ai-plan");
     if (!endpoint) {
       showToast("أضف رابط خادم الذكاء الاصطناعي من إعداد الحساب");
@@ -702,7 +839,10 @@
     try {
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Khutwati-Entitlement": state.subscription.entitlementToken
+        },
         body: JSON.stringify(aiProgressSummary())
       });
       const data = await response.json().catch(() => ({}));
@@ -768,6 +908,7 @@
     refreshDailyWater();
     generateDailyPlan();
     renderNutrition();
+    renderSubscription();
     const now = new Date();
     const targetDate = new Date(`${state.profile.targetDate}T23:59:59`);
     const days = Math.max(0, Math.ceil((targetDate - now) / 86400000));
@@ -1198,6 +1339,8 @@
   });
 
   $("requestAiPlanBtn").addEventListener("click", requestAiPlan);
+  $("subscribeBtn").addEventListener("click", purchaseSubscription);
+  $("restoreSubscriptionBtn").addEventListener("click", restoreSubscription);
   $("applyAiPlanBtn").addEventListener("click", applyAiPlan);
   ["closeAiPlanBtn", "dismissAiPlanBtn"].forEach(id => {
     $(id).addEventListener("click", () => $("aiPlanDialog").close());
@@ -1282,7 +1425,9 @@
     render();
     showPage(location.hash.replace("#", "") || "today", false);
     if ("serviceWorker" in navigator && !window.cordova) {
-      navigator.serviceWorker.register("service-worker.js?v=13").catch(() => {});
+      navigator.serviceWorker.register("service-worker.js?v=14").catch(() => {});
     }
   });
+
+  document.addEventListener("deviceready", initializePurchases, { once: true });
 })();

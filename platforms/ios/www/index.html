@@ -192,6 +192,7 @@
         </section>
 
         <section class="ai-coach-card">
+          <span class="premium-badge">اختياري · باشتراك</span>
           <div class="ai-coach-heading">
             <span class="ai-coach-icon">✦</span>
             <div>
@@ -199,7 +200,8 @@
               <p>يحلل تقدم الوزن والتمارين والوجبات، ثم يقترح تعديلاً محافظاً للخطة.</p>
             </div>
           </div>
-          <button class="primary-button" id="requestAiPlanBtn">حلّل تقدمي واقترح خطة</button>
+          <div class="subscription-status" id="subscriptionStatus">الخطة العادية مجانية · المدرب الذكي غير مشترك</div>
+          <button class="primary-button" id="requestAiPlanBtn">اشترك واستخدم المدرب الذكي</button>
           <small>لن تُطبّق أي توصية إلا بعد أن تراجعها وتضغط «تطبيق».</small>
           <details class="ai-coach-explanation">
             <summary>كيف يعمل المدرب الذكي؟</summary>
@@ -407,6 +409,28 @@
         <button class="primary-button" id="applyAiPlanBtn">تطبيق التعديلات</button>
         <button class="secondary-button" id="dismissAiPlanBtn">الاحتفاظ بالخطة الحالية</button>
       </div>
+    </div>
+  </dialog>
+
+  <dialog id="subscriptionDialog">
+    <div class="subscription-modal">
+      <button type="button" class="close-dialog cancel-dialog-button" aria-label="إغلاق دون اشتراك">×</button>
+      <span class="eyebrow dialog-eyebrow">ميزة اختيارية</span>
+      <h2>مدرب خطوتي الذكي</h2>
+      <p>تبقى خطة التمارين العادية والتسجيل والمؤقت والتغذية متاحة مجاناً. الاشتراك يضيف تحليلاً ذكياً لتقدمك واقتراحات مخصصة.</p>
+      <div class="subscription-plan-card">
+        <span>اشتراك شهري متجدد تلقائياً</span>
+        <strong id="subscriptionPrice">يظهر السعر من App Store</strong>
+        <ul>
+          <li>تحليل الوزن والالتزام والجهد.</li>
+          <li>اقتراح مدة كل جهاز وقسم.</li>
+          <li>تعديل محافظ للسعرات والخطة.</li>
+          <li>مراجعة التوصيات قبل تطبيقها.</li>
+        </ul>
+      </div>
+      <button class="primary-button" id="subscribeBtn">الاشتراك عبر App Store</button>
+      <button class="secondary-button" id="restoreSubscriptionBtn">استعادة الاشتراك السابق</button>
+      <small class="subscription-terms">يمكن إلغاء الاشتراك من إعدادات حساب Apple. لا يحل المدرب الذكي محل الطبيب أو المدرب المختص.</small>
     </div>
   </dialog>
 

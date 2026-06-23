@@ -1,0 +1,19 @@
+{
+  "prepare_queue": {
+    "installed": [],
+    "uninstalled": []
+  },
+  "config_munge": {
+    "files": {}
+  },
+  "installed_plugins": {
+    "cordova-plugin-purchase": {
+      "PACKAGE_NAME": "com.khutwati.app"
+    },
+    "cordova-plugin-purchase-storekit2": {
+      "SWIFTVERSION": "5.0",
+      "PACKAGE_NAME": "com.khutwati.app"
+    }
+  },
+  "dependent_plugins": {}
+}
