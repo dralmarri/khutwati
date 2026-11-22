@@ -7,7 +7,6 @@ raw="$($RUN sh -c '
   asterisk -rx "pjsip set logger on" >/dev/null
   asterisk -rx "pjsip send register *all" >/dev/null
   (sleep 12) | timeout 14 asterisk -rvvvv 2>&1
-  asterisk -rx "pjsip set logger off" >/dev/null
 ' | tr -d '\000' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | tr -d '\r')"
 
 # لكل رسالة: الاتجاه وسطرها الأول، وللردود الواردة أسباب الرفض إن وُجدت. المكرر يُجمع بعدد.

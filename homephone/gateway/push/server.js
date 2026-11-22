@@ -165,7 +165,9 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
       return { d, r: await sender.send(d, payload) };
     }));
     for (const { d, r } of results) {
-      if (!r.ok) log(`push to ${d.platform} failed: ${r.detail}`);
+      if (r.skipped) continue;
+      log(r.ok ? `push to ${d.platform} (${d.ext}) sent${d.sandbox ? ' [sandbox]' : ''}`
+        : `push to ${d.platform} (${d.ext}) failed: ${r.detail}`);
       if (r.gone) store.remove(d.token);
     }
     store.save();
@@ -208,6 +210,7 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
         calls.set(id, { ext, status: 'ringing', from, name, at: Date.now() });
         log(`incoming call ${id} for ${ext} from ${from}`);
         const count = store.devices.filter((d) => d.ext === ext).length;
+        if (!count) log(`no devices registered for ${ext}`);
         // لا ننتظر مزوّدي الإشعارات حتى لا نؤخّر الرنين
         fanout(ext, (d) => (d.platform === 'ios'
           ? { aps: {}, id, nameCaller: name || from, handle: from }

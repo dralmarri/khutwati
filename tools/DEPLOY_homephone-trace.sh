@@ -53,4 +53,8 @@ echo "$raw" | grep -E "\] (WARNING|ERROR)\[|app_dial\.c|Executing \[[^]]*\] (Dia
   | sed -E 's/^\[[0-9-]+ ([0-9:]+)\] /\1 /; s/(VERBOSE|WARNING|ERROR)\[[0-9]+\](\[C-[0-9a-f]+\])? /\1 /; s/VERBOSE (pbx|app_dial)\.c: //' \
   | cut -c1-160 | uniq | tail -n 12
 
+echo "— الإشعارات —"
+docker compose logs --no-log-prefix --since "${MINS}m" push 2>/dev/null | grep -E "incoming call|push to|no devices|internal error" | tail -n 6 \
+  | sed -E 's/incoming call [0-9a-f-]+ for/مكالمة واردة للتحويلة/' || true
+
 grep -qE "res_pjsip_logger" <<<"$raw" || echo "لم تمرّ أي رسالة SIP في هذه المدة."
