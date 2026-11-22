@@ -100,6 +100,18 @@ class Apns {
       req.end(JSON.stringify(payload));
     });
   }
+  // يسأل Apple هل تقبل هويتنا، دون حاجة لمكالمة: نرسل لرمز جهاز وهمي.
+  // "BadDeviceToken" = الهوية مقبولة (الرفض للرمز الوهمي فقط). غير ذلك = مشكلة في المفتاح أو المعرّفات.
+  async check() {
+    if (!this.enabled) return this.problem || 'غير مهيّأ: ينقص ملف المفتاح أو APNS_KEY_ID أو APNS_TEAM_ID';
+    const r = await this.post('api.push.apple.com', '0'.repeat(64), { aps: {} });
+    if (r.reason === 'BadDeviceToken') return 'ok';
+    if (r.reason === 'InvalidProviderToken') {
+      return `Apple رفضت الهوية (InvalidProviderToken): تحقق أن APNS_KEY_ID="${this.keyId}" هو معرّف ملف المفتاح الموجود، وأن APNS_TEAM_ID="${this.teamId}" هو معرّف الفريق`;
+    }
+    return `${r.status} ${r.reason}`;
+  }
+
   // النسخ المثبتة من Xcode تستخدم بيئة التطوير، ونسخ TestFlight والمتجر تستخدم بيئة الإنتاج.
   // نجرّب البيئة المحفوظة للجهاز ثم الأخرى ونحفظ التي نجحت.
   async send(device, payload) {
@@ -237,6 +249,9 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
           fanout(c.ext, (d) => (d.platform === 'ios' ? null : { type: 'cancel', id })).catch((e) => log(e.message));
         }
         return text(res, 200, 'ok');
+      }
+      if (p === '/internal/apns-check' && isLocal(req)) {
+        return text(res, 200, apns && apns.check ? await apns.check() : 'غير مهيّأ');
       }
       if (p === '/api/health') return json(res, 200, { ok: true });
 
