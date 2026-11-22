@@ -56,7 +56,14 @@ class Apns {
   constructor({ keyFile, keyId, teamId, bundleId }) {
     this.enabled = Boolean(keyId && teamId && bundleId && keyFile && fs.existsSync(keyFile));
     if (!this.enabled) return;
-    this.key = fs.readFileSync(keyFile, 'utf8');
+    try {
+      // نتحقق من المفتاح عند الإقلاع: ملف ناقص أو ملصوق بشكل خاطئ يُكتشف هنا لا عند أول مكالمة
+      this.key = crypto.createPrivateKey(fs.readFileSync(keyFile, 'utf8'));
+    } catch (e) {
+      this.enabled = false;
+      this.problem = `ملف المفتاح apns.p8 غير صالح (${e.code || e.message})`;
+      return;
+    }
     this.keyId = keyId; this.teamId = teamId; this.topic = `${bundleId}.voip`;
     this.jwt = null; this.jwtAt = 0;
   }
@@ -162,7 +169,11 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
       if (!sender || !sender.enabled) return { d, r: { ok: false, detail: 'not configured' } };
       const payload = build(d);
       if (!payload) return { d, r: { ok: true, skipped: true } };
-      return { d, r: await sender.send(d, payload) };
+      try {
+        return { d, r: await sender.send(d, payload) };
+      } catch (e) {
+        return { d, r: { ok: false, detail: `exception: ${e.message}` } };
+      }
     }));
     for (const { d, r } of results) {
       if (r.skipped) continue;
@@ -273,6 +284,7 @@ if (require.main === module) {
   const apns = new Apns({ keyFile: env.APNS_KEY_FILE, keyId: env.APNS_KEY_ID, teamId: env.APNS_TEAM_ID, bundleId: env.APNS_BUNDLE_ID });
   const fcm = new Fcm({ serviceAccountFile: env.FCM_SERVICE_ACCOUNT_FILE });
   const store = new DeviceStore(path.join(env.DATA_DIR || '.', 'devices.json'));
+  if (apns.problem) console.log(`APNs problem: ${apns.problem}`);
   console.log(`extensions: ${Object.keys(passwords).join(',')}, APNs: ${apns.enabled ? 'on' : 'off'}, FCM: ${fcm.enabled ? 'on' : 'off'}, devices: ${store.devices.length}`);
   createServer({ passwords, store, apns, fcm })
     .listen(Number(env.PUSH_PORT || 18473), '127.0.0.1');

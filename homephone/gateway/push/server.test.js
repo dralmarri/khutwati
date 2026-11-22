@@ -2,7 +2,10 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const crypto = require('node:crypto');
-const { createServer, DeviceStore, signJwt } = require('./server.js');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createServer, DeviceStore, Apns, signJwt } = require('./server.js');
 
 function start() {
   const sent = [];
@@ -80,5 +83,35 @@ test('a storage failure is reported as a server error, not a bad request', async
   assert.strictEqual((await add(base, 300, 'dad', 'ios', 'a'.repeat(64))).status, 500);
   const bad = await fetch(`${base}/api/devices`, { method: 'POST', headers: auth(300, 'dad'), body: '{oops' });
   assert.strictEqual(bad.status, 400);
+  server.close();
+});
+
+test('a damaged APNs key file is detected at startup', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apns-'));
+  const good = path.join(dir, 'good.p8');
+  const bad = path.join(dir, 'bad.p8');
+  const { privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  fs.writeFileSync(good, pem);
+  fs.writeFileSync(bad, pem.split('\n').slice(0, 2).join('\n'));
+  const opts = { keyId: 'K', teamId: 'T', bundleId: 'b' };
+  const ok = new Apns({ ...opts, keyFile: good });
+  assert.strictEqual(ok.enabled, true);
+  assert.strictEqual(ok.token().split('.').length, 3);
+  const broken = new Apns({ ...opts, keyFile: bad });
+  assert.strictEqual(broken.enabled, false);
+  assert.match(broken.problem, /apns\.p8/);
+});
+
+test('a sender that throws is logged as a failed push', async () => {
+  const logs = [];
+  const boom = { enabled: true, send: async () => { throw new Error('kaboom'); } };
+  const store = new DeviceStore(null);
+  store.add('300', 'ios', 'a'.repeat(64));
+  const server = createServer({ passwords: { 300: 'dad' }, store, apns: boom, fcm: boom, log: (m) => logs.push(m) });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  await fetch(`http://127.0.0.1:${server.address().port}/internal/notify?ext=300&from=1`);
+  await tick();
+  assert.ok(logs.some((l) => /push to ios \(300\) failed: exception: kaboom/.test(l)), logs.join(' | '));
   server.close();
 });
