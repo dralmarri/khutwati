@@ -15,6 +15,7 @@ deploy <المشروع> [العملية] [الفرع] [--force] [-- معطيات
 | `deploy khutwati homephone` | تشغيل أو تحديث وسيط هاتف المنزل |
 | `deploy khutwati homephone-nginx` | ربط الوسيط بـnginx الموجود وطلب الشهادة (يُستدعى تلقائياً من `homephone`) |
 | `deploy khutwati homephone-status` | حالة التسجيل على البدالة والجوالات المتصلة |
+| `deploy khutwati homephone-debug` | تشخيص التسجيل: ما يُرسَل للبدالة وما تردّ به |
 | `deploy khutwati homephone-logs` | آخر السجلات (`-- push` أو `-- caddy` لخدمة أخرى) |
 | `deploy khutwati homephone-stop` | إيقاف الوسيط |
 | `deploy LegalMind` | العملية الافتراضية `deploy` لمشروع آخر |
