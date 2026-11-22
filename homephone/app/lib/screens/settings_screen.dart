@@ -41,8 +41,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() => _saving = false);
   }
 
+  // الشاشة تُنشأ مرة واحدة (const) فلا يعيد الأب بناءها: نستمع لتغيّر الحالة هنا
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(listenable: phone, builder: (context, _) => _content(context));
+
+  Widget _content(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final sipText = phone.isRegistered
         ? 'مسجّل على الوسيط'
