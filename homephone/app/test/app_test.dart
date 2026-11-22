@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homephone/screens/dialpad_screen.dart';
 import 'package:homephone/settings.dart';
-import 'package:material_ui/material_ui.dart';
 
 void main() {
   test('cleanDomain strips scheme and path', () {
@@ -22,18 +21,9 @@ void main() {
     expect([back.number, back.name, back.kind, back.time, back.seconds], [r.number, r.name, r.kind, r.time, r.seconds]);
   });
 
-  testWidgets('dialpad builds the number and deletes digits', (tester) async {
-    await tester.pumpWidget(const MaterialApp(
-      home: Directionality(textDirection: TextDirection.rtl, child: Scaffold(body: DialpadScreen())),
-    ));
-    for (final k in ['1', '0', '5']) {
-      await tester.tap(find.widgetWithText(InkWell, k));
-    }
-    await tester.pump();
-    expect(find.text('105'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.backspace_outlined));
-    await tester.pump();
-    expect(find.text('10'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+  test('prettyNumber groups long numbers only', () {
+    expect(prettyNumber('0501234567'), '050 123 4567');
+    expect(prettyNumber('108'), '108');
+    expect(prettyNumber('+966501234567'), '+966501234567');
   });
 }

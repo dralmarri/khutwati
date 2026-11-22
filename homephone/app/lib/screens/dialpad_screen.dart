@@ -1,58 +1,14 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/services.dart';
 
 import '../phone_service.dart';
+import '../theme.dart';
+import '../widgets.dart';
 
-const dialKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
-
-/// شبكة الأرقام، تُستخدم في شاشة الاتصال وأثناء المكالمة. تبقى من اليسار لليمين دائماً.
-class KeyGrid extends StatelessWidget {
-  const KeyGrid({super.key, required this.onKey, this.onLongZero});
-  final void Function(String key) onKey;
-  final VoidCallback? onLongZero;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 320),
-        child: GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 20,
-          childAspectRatio: 1.25,
-          children: [
-            for (final k in dialKeys)
-              Material(
-                color: scheme.surfaceContainerHighest,
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    onKey(k);
-                  },
-                  onLongPress: k == '0' ? onLongZero : null,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(k, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w500)),
-                        if (k == '0' && onLongZero != null) Text('+', style: TextStyle(color: scheme.onSurfaceVariant)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+/// يعرض الرقم بمسافات للقراءة (050 123 4567) دون تغيير ما يُطلب فعلاً.
+String prettyNumber(String n) {
+  if (n.length < 8 || !RegExp(r'^[0-9]+$').hasMatch(n)) return n;
+  final head = n.length - 7;
+  return '${n.substring(0, head)} ${n.substring(head, head + 3)} ${n.substring(head + 3)}';
 }
 
 class DialpadScreen extends StatefulWidget {
@@ -84,66 +40,78 @@ class DialpadScreenState extends State<DialpadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text(
-                      _number.isEmpty ? ' ' : _number,
-                      maxLines: 1,
-                      style: const TextStyle(fontSize: 38, letterSpacing: 1.5),
+    final c = context.c;
+    return LayoutBuilder(
+      builder: (context, box) {
+        // مقاس الأزرار يتبع ارتفاع الشاشة حتى لا تُقصّ على الأجهزة الصغيرة
+        final keySize = ((box.maxHeight - 250) / 4.6).clamp(56.0, 84.0);
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            prettyNumber(_number),
+                            maxLines: 1,
+                            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w600, color: c.onSurface, fontFeatures: tabular, letterSpacing: 1),
+                          ),
+                          Container(width: 2, height: 40, margin: const EdgeInsets.only(left: 3), color: c.primary),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            KeyGrid(
-              onKey: (k) => setState(() => _number += k),
-              onLongZero: () => setState(() => _number += '+'),
-            ),
-            const SizedBox(height: 20),
-            Directionality(
-              textDirection: TextDirection.ltr,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 72),
-                  FloatingActionButton.large(
-                    heroTag: 'call',
-                    onPressed: _number.isEmpty || _busy ? null : _call,
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: const CircleBorder(),
-                    tooltip: 'اتصال',
-                    child: const Icon(Icons.call),
-                  ),
-                  SizedBox(
-                    width: 72,
-                    child: _number.isEmpty
-                        ? null
-                        : GestureDetector(
-                            onLongPress: () => setState(() => _number = ''),
-                            child: IconButton(
-                              tooltip: 'مسح',
-                              icon: const Icon(Icons.backspace_outlined),
-                              onPressed: () => setState(() => _number = _number.substring(0, _number.length - 1)),
-                            ),
-                          ),
-                  ),
-                ],
+              KeyGrid(
+                keySize: keySize,
+                onKey: (k) => setState(() => _number += k),
+                onLongZero: () => setState(() => _number += '+'),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+              SizedBox(height: keySize * 0.28),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(width: keySize * 1.3),
+                    RoundAction(
+                      icon: Icons.call,
+                      color: c.call,
+                      size: keySize,
+                      tooltip: 'اتصال',
+                      onTap: _busy ? null : _call,
+                    ),
+                    SizedBox(
+                      width: keySize * 1.3,
+                      child: _number.isEmpty
+                          ? null
+                          : GestureDetector(
+                              onLongPress: () => setState(() => _number = ''),
+                              child: IconButton(
+                                tooltip: 'مسح',
+                                iconSize: 28,
+                                color: c.onVariant,
+                                icon: const Icon(Icons.backspace),
+                                onPressed: () => setState(() => _number = _number.substring(0, _number.length - 1)),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: keySize * 0.3),
+            ],
+          ),
+        );
+      },
     );
   }
 }

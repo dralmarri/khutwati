@@ -5,6 +5,8 @@ import 'screens/call_screen.dart';
 import 'screens/dialpad_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
+import 'theme.dart';
+import 'widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,15 +19,11 @@ class HomePhoneApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme(Brightness b) => ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B5D57), brightness: b),
-          useMaterial3: true,
-        );
     return MaterialApp(
       title: 'هاتف المنزل',
       debugShowCheckedModeBanner: false,
-      theme: theme(Brightness.light),
-      darkTheme: theme(Brightness.dark),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
       builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
       home: const HomePage(),
     );
@@ -73,17 +71,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       builder: (context, _) {
         if (phone.phase != CallPhase.idle) return const CallScreen();
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('هاتف المنزل'),
-            actions: [Padding(padding: const EdgeInsetsDirectional.only(end: 12), child: _StatusChip(phone: phone))],
-          ),
-          body: IndexedStack(
-            index: _tab,
-            children: [
-              DialpadScreen(key: _dialpadKey),
-              HistoryScreen(onRedial: _redial),
-              const SettingsScreen(),
-            ],
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                AppHeader(phone: phone),
+                Expanded(
+                  child: IndexedStack(
+                    index: _tab,
+                    children: [
+                      DialpadScreen(key: _dialpadKey),
+                      HistoryScreen(onRedial: _redial),
+                      const SettingsScreen(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _tab,
@@ -96,28 +100,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
         );
       },
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.phone});
-  final PhoneService phone;
-
-  @override
-  Widget build(BuildContext context) {
-    final ok = phone.isRegistered;
-    final busy = phone.isConnecting;
-    final color = ok ? Colors.green : (busy ? Colors.orange : Theme.of(context).colorScheme.error);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.circle, size: 10, color: color),
-        const SizedBox(width: 6),
-        Text(ok
-            ? 'تحويلة ${phone.settings.extension}'
-            : (busy ? 'جارٍ الاتصال…' : (phone.settings.isConfigured ? 'غير متصل' : 'غير مُعدّ'))),
-      ],
     );
   }
 }

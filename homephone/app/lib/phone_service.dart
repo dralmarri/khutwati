@@ -54,7 +54,11 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
   // الحالة تُقرأ من الاتصال الحالي مباشرة. عند إعادة الاتصال تصل أحداث الاتصال القديم
   // (انقطاع) متأخرة بعد نجاح الجديد، فلا يصحّ الاعتماد على آخر حدث وصل.
-  bool get isRegistered => _ua.registered;
+  bool get isRegistered => debugRegistered ?? _ua.registered;
+
+  /// للاختبارات فقط: يفرض حالة التسجيل دون اتصال حقيقي.
+  @visibleForTesting
+  bool? debugRegistered;
 
   /// الاتصال قيد الإنشاء (عند فتح التطبيق مثلاً، فالنظام يقطعه والتطبيق في الخلفية)
   bool get isConnecting =>

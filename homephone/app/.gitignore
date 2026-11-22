@@ -49,3 +49,6 @@ app.*.map.json
 
 # مفاتيح Firebase الخاصة بكل مستخدم
 /android/app/google-services.json
+
+# صور المعاينة التي يولّدها اختبار الشاشات عند الطلب
+/test/shots/
