@@ -65,6 +65,7 @@ import WebRTC
     let data = flutter_callkit_incoming.Data(id: id, nameCaller: name, handle: handle, type: 0)
     data.appName = "هاتف المنزل"
     data.handleType = "number"
+    data.normalHandle = 1
     data.supportsVideo = false
     data.supportsHolding = true
     data.supportsDTMF = true

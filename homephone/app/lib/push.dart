@@ -34,6 +34,7 @@ CallKitParams callParams({required String id, required String number, String nam
     ),
     ios: const IOSParams(
       handleType: 'number',
+      normalHandle: 1, // الرقم يُعرض كما هو في شاشة الاتصال وسجل الهاتف
       supportsVideo: false,
       maximumCallGroups: 1,
       maximumCallsPerCallGroup: 1,
