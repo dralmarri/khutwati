@@ -107,13 +107,16 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ok = phone.isRegistered;
-    final color = ok ? Colors.green : Theme.of(context).colorScheme.error;
+    final busy = phone.isConnecting;
+    final color = ok ? Colors.green : (busy ? Colors.orange : Theme.of(context).colorScheme.error);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.circle, size: 10, color: color),
         const SizedBox(width: 6),
-        Text(ok ? 'تحويلة ${phone.settings.extension}' : (phone.settings.isConfigured ? 'غير متصل' : 'غير مُعدّ')),
+        Text(ok
+            ? 'تحويلة ${phone.settings.extension}'
+            : (busy ? 'جارٍ الاتصال…' : (phone.settings.isConfigured ? 'غير متصل' : 'غير مُعدّ'))),
       ],
     );
   }

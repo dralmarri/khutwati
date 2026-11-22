@@ -51,7 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? 'مسجّل على الوسيط'
         : switch (phone.registration) {
             RegistrationStateEnum.REGISTRATION_FAILED => 'فشل التسجيل',
-            _ => phone.settings.isConfigured ? 'غير متصل' : 'أدخل الإعدادات',
+            _ => phone.isConnecting ? 'جارٍ الاتصال…' : (phone.settings.isConfigured ? 'غير متصل' : 'أدخل الإعدادات'),
           };
     return ListView(
       padding: const EdgeInsets.all(20),

@@ -56,6 +56,10 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
   // (انقطاع) متأخرة بعد نجاح الجديد، فلا يصحّ الاعتماد على آخر حدث وصل.
   bool get isRegistered => _ua.registered;
 
+  /// الاتصال قيد الإنشاء (عند فتح التطبيق مثلاً، فالنظام يقطعه والتطبيق في الخلفية)
+  bool get isConnecting =>
+      !_ua.registered && settings.isConfigured && (_starting || _ua.connecting || _ua.connected || _resuming);
+
   // ---------- التهيئة والاتصال ----------
 
   Future<void> init() async {
@@ -128,7 +132,16 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     unawaited(connect());
   }
 
+  bool _resuming = false;
+
   void onAppResumed() {
+    // مهلة قصيرة نعرض فيها "جارٍ الاتصال" بدل "غير متصل" ريثما يعود الاتصال
+    _resuming = true;
+    notifyListeners();
+    Timer(const Duration(seconds: 6), () {
+      _resuming = false;
+      notifyListeners();
+    });
     ensureConnected();
     if (!push.registered) unawaited(push.register(settings).then((_) => notifyListeners()));
   }
