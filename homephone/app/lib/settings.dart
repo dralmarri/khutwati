@@ -20,11 +20,14 @@ class AppSettings {
 
   static const _secure = FlutterSecureStorage();
 
+  // يجب أن تُقرأ كلمة المرور والهاتف مقفل، حتى يسجّل التطبيق عند ورود مكالمة
+  static const _ios = IOSOptions(accessibility: KeychainAccessibility.first_unlock);
+
   static Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
     String password = '';
     try {
-      password = await _secure.read(key: 'password') ?? '';
+      password = await _secure.read(key: 'password', iOptions: _ios) ?? '';
     } catch (_) {
       // المخزن الآمن غير متاح قبل أول فتح للقفل بعد إعادة التشغيل
     }
@@ -42,8 +45,7 @@ class AppSettings {
     await _secure.write(
       key: 'password',
       value: password,
-      // يجب أن تُقرأ والهاتف مقفل حتى يسجّل التطبيق عند ورود مكالمة
-      iOptions: const IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      iOptions: _ios,
     );
   }
 

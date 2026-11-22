@@ -10,14 +10,26 @@ import WebRTC
 #endif
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, PKPushRegistryDelegate, CallkitIncomingAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, PKPushRegistryDelegate, CallkitIncomingAppDelegate {
   private var voipRegistry: PKPushRegistry?
+
+  // المحرّك يُنشأ ويُشغَّل هنا عند الإقلاع، لا عند ظهور الواجهة.
+  // حين يوقظ إشعار مكالمة التطبيقَ وهو مغلق لا تُفتح أي واجهة، فلو انتظرنا الواجهة
+  // لما وُجدت إضافة المكالمات لتُظهر شاشة الرنين، ولما اشتغل كود التسجيل على الوسيط.
+  lazy var flutterEngine = FlutterEngine(name: "homephone")
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // التسجيل لإشعارات VoIP: هي التي توقظ التطبيق عند ورود مكالمة وهو مغلق
+    flutterEngine.run()
+    GeneratedPluginRegistrant.register(with: flutterEngine)
+    // نافذة تحمل الواجهة؛ FlutterSceneDelegate ينقلها إلى المشهد عند فتح التطبيق
+    let window = UIWindow(frame: UIScreen.main.bounds)
+    window.rootViewController = FlutterViewController(engine: flutterEngine, nibName: nil, bundle: nil)
+    self.window = window
+
+    // التسجيل لإشعارات VoIP (بعد تسجيل الإضافات حتى تكون جاهزة عند وصول أول إشعار): هي التي توقظ التطبيق عند ورود مكالمة وهو مغلق
     let registry = PKPushRegistry(queue: DispatchQueue.main)
     registry.delegate = self
     registry.desiredPushTypes = [.voIP]
@@ -30,10 +42,6 @@ import WebRTC
     #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 
   // MARK: - PushKit
@@ -62,6 +70,11 @@ import WebRTC
     let id = info["id"] as? String ?? UUID().uuidString
     let handle = info["handle"] as? String ?? ""
     let name = info["nameCaller"] as? String ?? handle
+    guard let callkit = SwiftFlutterCallkitIncomingPlugin.sharedInstance else {
+      NSLog("[HomePhone] VoIP push received but the call plugin is not ready")
+      completion()
+      return
+    }
     let data = flutter_callkit_incoming.Data(id: id, nameCaller: name, handle: handle, type: 0)
     data.appName = "هاتف المنزل"
     data.handleType = "number"
@@ -74,7 +87,7 @@ import WebRTC
     data.maximumCallGroups = 1
     data.maximumCallsPerCallGroup = 1
     data.audioSessionMode = "voiceChat"
-    SwiftFlutterCallkitIncomingPlugin.sharedInstance?.showCallkitIncoming(data, fromPushKit: true) {
+    callkit.showCallkitIncoming(data, fromPushKit: true) {
       completion()
     }
   }
