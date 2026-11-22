@@ -38,6 +38,15 @@ echo "$raw" | sed -E 's/^\[[^]]*\] VERBOSE\[[0-9]+\] res_pjsip_logger\.c: (<---)
   !skip && recv && /^(Warning|Reason):/ { print "      " $0 }
 ' | uniq -c | tail -n 24
 
+echo "— آخر تجديدات التسجيل على البدالة —"
+echo "$raw" | awk '
+  /res_pjsip_logger\.c: <--- Received SIP response .* from UDP:/ { ts = substr($0, 13, 8); want = 1; next }
+  /res_pjsip_logger\.c: <---/ { want = 0; inreg = 0; next }
+  want == 1 { status = $0; sub(/^SIP\/2\.0 /, "", status); want = 2; next }
+  want == 2 && /^To:/ { who = $0; sub(/^To: *<sip:/, "", who); sub(/@.*/, "", who) }
+  want == 2 && /^CSeq:/ { if ($0 ~ /REGISTER$/) print ts "  تحويلة " who "  ←  " status; want = 0 }
+' | grep -v "401 Unauthorized" | tail -n 4
+
 echo "— خطوات المكالمة وملاحظات Asterisk —"
 echo "$raw" | grep -E "\] (WARNING|ERROR)\[|app_dial\.c|Executing \[[^]]*\] (Dial|NoOp)|exited non-zero" \
   | grep -vE "res_pjsip_logger|declined to load|already registered|may be removed|was deprecated|res_hep|cdr_|cel_|voicemail|geolocation|pgsql|ldap|musiconhold|phoneprov|Already have an application|No configured users for ARI|asterisk/moh" \
