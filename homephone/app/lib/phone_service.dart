@@ -32,7 +32,6 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
   List<CallRecord> history = [];
 
   RegistrationStateEnum registration = RegistrationStateEnum.NONE;
-  TransportStateEnum _transport = TransportStateEnum.NONE;
   bool _starting = false;
   String? lastError;
 
@@ -53,7 +52,9 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
   Timer? _watchdog;
   int _ticksWithoutSip = 0;
 
-  bool get isRegistered => registration == RegistrationStateEnum.REGISTERED;
+  // الحالة تُقرأ من الاتصال الحالي مباشرة. عند إعادة الاتصال تصل أحداث الاتصال القديم
+  // (انقطاع) متأخرة بعد نجاح الجديد، فلا يصحّ الاعتماد على آخر حدث وصل.
+  bool get isRegistered => _ua.registered;
 
   // ---------- التهيئة والاتصال ----------
 
@@ -123,7 +124,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
   /// يُستدعى عند عودة التطبيق للواجهة أو عند وصول إشعار: يعيد الاتصال إن كان مقطوعاً.
   void ensureConnected() {
     if (!settings.isConfigured) return;
-    if (_transport == TransportStateEnum.CONNECTED || _transport == TransportStateEnum.CONNECTING) return;
+    if (_starting || _ua.connected || _ua.connecting) return;
     unawaited(connect());
   }
 
@@ -267,16 +268,14 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
   @override
   void transportStateChanged(TransportState state) {
-    _transport = state.state;
-    if (state.state == TransportStateEnum.DISCONNECTED) {
-      registration = RegistrationStateEnum.UNREGISTERED;
-    }
+    if (!_ua.connected && !_ua.registered) registration = RegistrationStateEnum.UNREGISTERED;
     notifyListeners();
   }
 
   @override
   void registrationStateChanged(RegistrationState state) {
-    registration = state.state ?? RegistrationStateEnum.NONE;
+    final reported = state.state ?? RegistrationStateEnum.NONE;
+    registration = _ua.registered ? RegistrationStateEnum.REGISTERED : reported;
     lastError = registration == RegistrationStateEnum.REGISTRATION_FAILED
         ? 'فشل التسجيل: تحقق من رقم التحويلة وكلمة المرور'
         : null;

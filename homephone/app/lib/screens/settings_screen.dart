@@ -44,11 +44,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final sipText = switch (phone.registration) {
-      RegistrationStateEnum.REGISTERED => 'مسجّل على الوسيط',
-      RegistrationStateEnum.REGISTRATION_FAILED => 'فشل التسجيل',
-      _ => phone.settings.isConfigured ? 'غير متصل' : 'أدخل الإعدادات',
-    };
+    final sipText = phone.isRegistered
+        ? 'مسجّل على الوسيط'
+        : switch (phone.registration) {
+            RegistrationStateEnum.REGISTRATION_FAILED => 'فشل التسجيل',
+            _ => phone.settings.isConfigured ? 'غير متصل' : 'أدخل الإعدادات',
+          };
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -105,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 28),
         Text('الحالة', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        _StatusRow(ok: phone.isRegistered, title: 'الاتصال', detail: phone.lastError ?? sipText),
+        _StatusRow(ok: phone.isRegistered, title: 'الاتصال', detail: phone.isRegistered ? sipText : (phone.lastError ?? sipText)),
         _StatusRow(
           ok: phone.push.registered,
           title: 'إشعارات المكالمات الواردة',
