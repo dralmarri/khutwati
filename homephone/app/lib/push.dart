@@ -108,13 +108,13 @@ class PushRegistrar {
       final res = await http
           .post(
             Uri.https(settings.domain, '/api/devices'),
-            headers: {'authorization': 'Bearer ${settings.password}', 'content-type': 'application/json'},
+            headers: {'authorization': settings.bearer, 'content-type': 'application/json'},
             body: jsonEncode({'platform': Platform.isIOS ? 'ios' : 'android', 'token': token}),
           )
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
         registered = false;
-        lastError = res.statusCode == 401 ? 'كلمة المرور غير صحيحة' : 'الوسيط رفض التسجيل (${res.statusCode})';
+        lastError = res.statusCode == 401 ? 'رقم التحويلة أو كلمة المرور غير صحيحة' : 'الوسيط رفض التسجيل (${res.statusCode})';
         return;
       }
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -131,7 +131,7 @@ class PushRegistrar {
   static Future<String?> callStatus(AppSettings settings, String id) async {
     try {
       final res = await http
-          .get(Uri.https(settings.domain, '/api/calls/$id'), headers: {'authorization': 'Bearer ${settings.password}'})
+          .get(Uri.https(settings.domain, '/api/calls/$id'), headers: {'authorization': settings.bearer})
           .timeout(const Duration(seconds: 4));
       if (res.statusCode != 200) return null;
       return (jsonDecode(res.body) as Map<String, dynamic>)['status'] as String?;

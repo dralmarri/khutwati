@@ -9,6 +9,13 @@ void main() {
     expect(AppSettings.cleanDomain('srv1.hstgr.cloud'), 'srv1.hstgr.cloud');
   });
 
+  test('settings need domain, extension and password', () {
+    expect(AppSettings(domain: 'a.example', password: 'p').isConfigured, isFalse);
+    final s = AppSettings(domain: 'a.example', extension: '301', password: 'p');
+    expect(s.isConfigured, isTrue);
+    expect(s.bearer, 'Bearer 301:p');
+  });
+
   test('call records survive a JSON round trip', () {
     final r = CallRecord(number: '0501234567', name: 'علي', kind: CallKind.missed, time: DateTime(2026, 1, 2, 3, 4), seconds: 7);
     final back = CallRecord.fromJson(r.toJson());

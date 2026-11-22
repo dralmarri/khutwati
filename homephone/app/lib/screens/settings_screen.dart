@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sip_ua/sip_ua.dart' show RegistrationStateEnum;
 
@@ -14,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final phone = PhoneService.instance;
   late final _domain = TextEditingController(text: phone.settings.domain);
+  late final _extension = TextEditingController(text: phone.settings.extension);
   late final _password = TextEditingController(text: phone.settings.password);
   bool _hide = true;
   bool _saving = false;
@@ -21,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _domain.dispose();
+    _extension.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -29,7 +32,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     await phone.applySettings(
-      AppSettings(domain: AppSettings.cleanDomain(_domain.text), password: _password.text.trim()),
+      AppSettings(
+        domain: AppSettings.cleanDomain(_domain.text),
+        extension: _extension.text.trim(),
+        password: _password.text.trim(),
+      ),
     );
     if (mounted) setState(() => _saving = false);
   }
@@ -58,6 +65,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 16),
         TextField(
+          controller: _extension,
+          textDirection: TextDirection.ltr,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(
+            labelText: 'رقم التحويلة',
+            hintText: '300',
+            helperText: 'خط البدالة الذي يستخدمه هذا الجهاز',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
           controller: _password,
           textDirection: TextDirection.ltr,
           obscureText: _hide,
@@ -65,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           enableSuggestions: false,
           decoration: InputDecoration(
             labelText: 'كلمة مرور التطبيق',
-            helperText: 'قيمة MOBILE_PASSWORD في ملف .env على الوسيط',
+            helperText: 'كلمة مرور هذه التحويلة على الوسيط',
             border: const OutlineInputBorder(),
             suffixIcon: IconButton(
               icon: Icon(_hide ? Icons.visibility : Icons.visibility_off),

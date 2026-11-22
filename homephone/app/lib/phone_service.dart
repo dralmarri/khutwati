@@ -102,8 +102,8 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       final s = UaSettings()
         ..transportType = TransportType.WS
         ..webSocketUrl = 'wss://${settings.domain}/ws'
-        ..uri = 'sip:mobile@${settings.domain}'
-        ..authorizationUser = 'mobile'
+        ..uri = 'sip:${settings.extension}@${settings.domain}'
+        ..authorizationUser = settings.extension
         ..password = settings.password
         ..displayName = 'HomePhone'
         ..userAgent = 'HomePhone'
@@ -278,7 +278,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
   void registrationStateChanged(RegistrationState state) {
     registration = state.state ?? RegistrationStateEnum.NONE;
     lastError = registration == RegistrationStateEnum.REGISTRATION_FAILED
-        ? 'فشل التسجيل: تحقق من اسم النطاق وكلمة المرور'
+        ? 'فشل التسجيل: تحقق من رقم التحويلة وكلمة المرور'
         : null;
     notifyListeners();
   }

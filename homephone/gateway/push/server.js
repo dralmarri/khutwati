@@ -36,10 +36,11 @@ class DeviceStore {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     fs.writeFileSync(this.file, JSON.stringify(this.devices, null, 2));
   }
-  add(platform, token) {
+  // الجهاز يتبع تحويلة واحدة: إن غيّر المستخدم تحويلته في التطبيق ينتقل معها
+  add(ext, platform, token) {
     const found = this.devices.find((d) => d.token === token);
-    if (found) { found.platform = platform; found.seen = Date.now(); } else {
-      this.devices.push({ platform, token, seen: Date.now() });
+    if (found) { found.ext = ext; found.platform = platform; found.seen = Date.now(); } else {
+      this.devices.push({ ext, platform, token, seen: Date.now() });
     }
     this.save();
   }
@@ -147,15 +148,16 @@ class Fcm {
 }
 
 // ---------- الخادم ----------
-function createServer({ password, store, apns, fcm, log = console.log }) {
-  const calls = new Map(); // id -> { status, from, name, at }
+// passwords: { رقم التحويلة: كلمة مرور التطبيق }
+function createServer({ passwords, store, apns, fcm, log = console.log }) {
+  const calls = new Map(); // id -> { ext, status, from, name, at }
 
   const prune = () => {
     for (const [id, c] of calls) if (Date.now() - c.at > 10 * 60 * 1000) calls.delete(id);
   };
 
-  async function fanout(build) {
-    const results = await Promise.all(store.devices.map(async (d) => {
+  async function fanout(ext, build) {
+    const results = await Promise.all(store.devices.filter((d) => d.ext === ext).map(async (d) => {
       const sender = d.platform === 'ios' ? apns : fcm;
       if (!sender || !sender.enabled) return { d, r: { ok: false, detail: 'not configured' } };
       const payload = build(d);
@@ -182,9 +184,11 @@ function createServer({ password, store, apns, fcm, log = console.log }) {
     req.on('error', reject);
   });
 
-  const authed = (req) => {
-    const m = /^Bearer (.+)$/.exec(req.headers.authorization || '');
-    return Boolean(password) && Boolean(m) && safeEqual(m[1], password);
+  // التطبيق يرسل "Bearer <رقم التحويلة>:<كلمة المرور>". يعيد رقم التحويلة أو null.
+  const authedExt = (req) => {
+    const m = /^Bearer (\d+):(.+)$/.exec(req.headers.authorization || '');
+    if (!m || !Object.hasOwn(passwords, m[1])) return null;
+    return safeEqual(m[2], passwords[m[1]]) ? m[1] : null;
   };
   // Caddy يضيف X-Forwarded-For لكل طلب قادم من الإنترنت. المسارات الداخلية تُقبل من Asterisk المحلي فقط.
   const isLocal = (req) => !req.headers['x-forwarded-for']
@@ -198,13 +202,14 @@ function createServer({ password, store, apns, fcm, log = console.log }) {
       if (p === '/internal/notify' && isLocal(req)) {
         prune();
         const id = crypto.randomUUID();
+        const ext = url.searchParams.get('ext') || '';
         const from = (url.searchParams.get('from') || '').slice(0, 64);
         const name = (url.searchParams.get('name') || '').slice(0, 64);
-        calls.set(id, { status: 'ringing', from, name, at: Date.now() });
-        log(`incoming call ${id} from ${from}`);
-        const count = store.devices.length;
+        calls.set(id, { ext, status: 'ringing', from, name, at: Date.now() });
+        log(`incoming call ${id} for ${ext} from ${from}`);
+        const count = store.devices.filter((d) => d.ext === ext).length;
         // لا ننتظر مزوّدي الإشعارات حتى لا نؤخّر الرنين
-        fanout((d) => (d.platform === 'ios'
+        fanout(ext, (d) => (d.platform === 'ios'
           ? { aps: {}, id, nameCaller: name || from, handle: from }
           : { type: 'call', id, nameCaller: name || from, handle: from })).catch((e) => log(e.message));
         return text(res, 200, `${count},${id}`);
@@ -215,20 +220,21 @@ function createServer({ password, store, apns, fcm, log = console.log }) {
         if (c && c.status !== 'ended') {
           c.status = 'ended';
           // آيفون لا يقبل إشعار VoIP لغير مكالمة جديدة، فالتطبيق يستعلم عن الحالة بنفسه
-          fanout((d) => (d.platform === 'ios' ? null : { type: 'cancel', id })).catch((e) => log(e.message));
+          fanout(c.ext, (d) => (d.platform === 'ios' ? null : { type: 'cancel', id })).catch((e) => log(e.message));
         }
         return text(res, 200, 'ok');
       }
       if (p === '/api/health') return json(res, 200, { ok: true });
 
       if (!p.startsWith('/api/')) return json(res, 404, { error: 'not found' });
-      if (!authed(req)) return json(res, 401, { error: 'unauthorized' });
+      const ext = authedExt(req);
+      if (!ext) return json(res, 401, { error: 'unauthorized' });
 
       if (p === '/api/devices' && req.method === 'POST') {
         const b = await readBody(req);
         if (!['ios', 'android'].includes(b.platform) || typeof b.token !== 'string'
           || b.token.length < 16 || b.token.length > 4096) return json(res, 400, { error: 'bad request' });
-        store.add(b.platform, b.token);
+        store.add(ext, b.platform, b.token);
         return json(res, 200, { ok: true, push: Boolean((b.platform === 'ios' ? apns : fcm)?.enabled) });
       }
       if (p === '/api/devices' && req.method === 'DELETE') {
@@ -239,7 +245,7 @@ function createServer({ password, store, apns, fcm, log = console.log }) {
       const m = /^\/api\/calls\/([0-9a-f-]{36})$/.exec(p);
       if (m && req.method === 'GET') {
         const c = calls.get(m[1]);
-        return json(res, 200, { status: c ? c.status : 'ended' });
+        return json(res, 200, { status: c && c.ext === ext ? c.status : 'ended' });
       }
       return json(res, 404, { error: 'not found' });
     } catch (e) {
@@ -252,11 +258,16 @@ module.exports = { createServer, DeviceStore, Apns, Fcm, signJwt };
 
 if (require.main === module) {
   const env = process.env;
-  if (!env.MOBILE_PASSWORD) { console.error('MOBILE_PASSWORD غير معرّف'); process.exit(1); }
+  const passwords = {};
+  for (const [k, v] of Object.entries(env)) {
+    const m = /^MOBILE_PASSWORD_(\d+)$/.exec(k);
+    if (m && v) passwords[m[1]] = v;
+  }
+  if (!Object.keys(passwords).length) { console.error('لا يوجد MOBILE_PASSWORD_<رقم التحويلة> في ملف .env'); process.exit(1); }
   const apns = new Apns({ keyFile: env.APNS_KEY_FILE, keyId: env.APNS_KEY_ID, teamId: env.APNS_TEAM_ID, bundleId: env.APNS_BUNDLE_ID });
   const fcm = new Fcm({ serviceAccountFile: env.FCM_SERVICE_ACCOUNT_FILE });
   const store = new DeviceStore(path.join(env.DATA_DIR || '.', 'devices.json'));
-  console.log(`APNs: ${apns.enabled ? 'on' : 'off'}, FCM: ${fcm.enabled ? 'on' : 'off'}, devices: ${store.devices.length}`);
-  createServer({ password: env.MOBILE_PASSWORD, store, apns, fcm })
+  console.log(`extensions: ${Object.keys(passwords).join(',')}, APNs: ${apns.enabled ? 'on' : 'off'}, FCM: ${fcm.enabled ? 'on' : 'off'}, devices: ${store.devices.length}`);
+  createServer({ passwords, store, apns, fcm })
     .listen(Number(env.PUSH_PORT || 3000), '127.0.0.1');
 }

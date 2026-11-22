@@ -5,12 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// إعدادات الاتصال بالوسيط. كلمة المرور تُحفظ في مخزن النظام الآمن.
 class AppSettings {
-  AppSettings({this.domain = '', this.password = ''});
+  AppSettings({this.domain = '', this.extension = '', this.password = ''});
 
   String domain;
+
+  /// رقم التحويلة في البدالة التي يستخدمها هذا الجهاز (مثل 300)
+  String extension;
   String password;
 
-  bool get isConfigured => domain.isNotEmpty && password.isNotEmpty;
+  bool get isConfigured => domain.isNotEmpty && extension.isNotEmpty && password.isNotEmpty;
+
+  /// ترويسة التوثيق لدى خدمة الإشعارات في الوسيط
+  String get bearer => 'Bearer $extension:$password';
 
   static const _secure = FlutterSecureStorage();
 
@@ -22,12 +28,17 @@ class AppSettings {
     } catch (_) {
       // المخزن الآمن غير متاح قبل أول فتح للقفل بعد إعادة التشغيل
     }
-    return AppSettings(domain: prefs.getString('domain') ?? '', password: password);
+    return AppSettings(
+      domain: prefs.getString('domain') ?? '',
+      extension: prefs.getString('extension') ?? '',
+      password: password,
+    );
   }
 
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('domain', domain);
+    await prefs.setString('extension', extension);
     await _secure.write(
       key: 'password',
       value: password,

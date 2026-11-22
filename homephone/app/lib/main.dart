@@ -113,7 +113,7 @@ class _StatusChip extends StatelessWidget {
       children: [
         Icon(Icons.circle, size: 10, color: color),
         const SizedBox(width: 6),
-        Text(ok ? 'متصل' : (phone.settings.isConfigured ? 'غير متصل' : 'غير مُعدّ')),
+        Text(ok ? 'تحويلة ${phone.settings.extension}' : (phone.settings.isConfigured ? 'غير متصل' : 'غير مُعدّ')),
       ],
     );
   }
