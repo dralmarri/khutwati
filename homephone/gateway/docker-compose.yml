@@ -1,0 +1,33 @@
+# الوسيط: Asterisk (يسجّل على البدالة ويخدم التطبيق) + خدمة الإشعارات + Caddy (شهادة TLS تلقائية)
+services:
+  asterisk:
+    build: ./asterisk
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+
+  push:
+    build: ./push
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      APNS_KEY_FILE: /secrets/apns.p8
+      FCM_SERVICE_ACCOUNT_FILE: /secrets/firebase.json
+    volumes:
+      - push-data:/data
+      - ./secrets:/secrets:ro
+
+  caddy:
+    image: caddy:2
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+
+volumes:
+  push-data:
+  caddy-data:

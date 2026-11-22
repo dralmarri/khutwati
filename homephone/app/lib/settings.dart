@@ -1,0 +1,95 @@
+import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// إعدادات الاتصال بالوسيط. كلمة المرور تُحفظ في مخزن النظام الآمن.
+class AppSettings {
+  AppSettings({this.domain = '', this.password = ''});
+
+  String domain;
+  String password;
+
+  bool get isConfigured => domain.isNotEmpty && password.isNotEmpty;
+
+  static const _secure = FlutterSecureStorage();
+
+  static Future<AppSettings> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    String password = '';
+    try {
+      password = await _secure.read(key: 'password') ?? '';
+    } catch (_) {
+      // المخزن الآمن غير متاح قبل أول فتح للقفل بعد إعادة التشغيل
+    }
+    return AppSettings(domain: prefs.getString('domain') ?? '', password: password);
+  }
+
+  Future<void> save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('domain', domain);
+    await _secure.write(
+      key: 'password',
+      value: password,
+      // يجب أن تُقرأ والهاتف مقفل حتى يسجّل التطبيق عند ورود مكالمة
+      iOptions: const IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+    );
+  }
+
+  /// يقبل "example.com" أو "https://example.com/" ويعيد اسم النطاق فقط.
+  static String cleanDomain(String input) {
+    var d = input.trim();
+    d = d.replaceFirst(RegExp(r'^[a-zA-Z]+://'), '');
+    final slash = d.indexOf('/');
+    if (slash >= 0) d = d.substring(0, slash);
+    return d.toLowerCase();
+  }
+}
+
+enum CallKind { outgoing, incoming, missed }
+
+class CallRecord {
+  CallRecord({required this.number, required this.name, required this.kind, required this.time, this.seconds = 0});
+
+  final String number;
+  final String name;
+  final CallKind kind;
+  final DateTime time;
+  final int seconds;
+
+  Map<String, dynamic> toJson() => {
+        'number': number,
+        'name': name,
+        'kind': kind.name,
+        'time': time.millisecondsSinceEpoch,
+        'seconds': seconds,
+      };
+
+  static CallRecord fromJson(Map<String, dynamic> j) => CallRecord(
+        number: j['number'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        kind: CallKind.values.firstWhere((k) => k.name == j['kind'], orElse: () => CallKind.outgoing),
+        time: DateTime.fromMillisecondsSinceEpoch(j['time'] as int? ?? 0),
+        seconds: j['seconds'] as int? ?? 0,
+      );
+}
+
+class CallHistory {
+  static const _key = 'history';
+  static const _max = 200;
+
+  static Future<List<CallRecord>> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final list = jsonDecode(prefs.getString(_key) ?? '[]') as List<dynamic>;
+      return list.map((e) => CallRecord.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> save(List<CallRecord> records) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, jsonEncode(records.take(_max).map((r) => r.toJson()).toList()));
+  }
+}

@@ -1,0 +1,107 @@
+# هاتف المنزل
+
+تطبيق جوال (آيفون وأندرويد) للاتصال والاستقبال عبر بدالة باناسونيك KX-NCP500 في المنزل من أي مكان، بديل خاص عن Bria.
+
+مشروع مستقل عن تطبيق «خطواتي» الموجود في جذر المستودع.
+
+## كيف يعمل
+
+```
+الجوال  ──(WSS + WebRTC مشفّر)──►  الوسيط على الخادم  ──(SIP/UDP)──►  راوتر المنزل ──► البدالة (تحويلة 300)
+   ▲                                      │
+   └──────── إشعار رنين (Apple / Google) ◄─┘
+```
+
+- `gateway/` : الوسيط. يعمل على الخادم دائماً ويتكوّن من ثلاث حاويات:
+  - **Asterisk** يسجّل على البدالة كتحويلة 300 (بنفس إعدادات Bria) ويحوّل المكالمات بينها وبين التطبيق.
+  - **push** يرسل إشعار الرنين للجوال عند ورود مكالمة، فيرنّ والتطبيق مغلق.
+  - **Caddy** يصدر شهادة TLS تلقائياً.
+- `app/` : التطبيق (Flutter).
+
+## حالة العمل
+
+| الجزء | الحالة |
+|---|---|
+| خدمة الإشعارات | مختبرة آلياً (`cd gateway/push && npm test`) |
+| كود التطبيق | يجتاز التحليل والاختبارات (`flutter analyze` و`flutter test`) |
+| إعداد Asterisk | **لم يُشغَّل بعد** على خادم حقيقي ولا مع البدالة |
+| بناء آيفون وأندرويد | **لم يُبنَ بعد**: يحتاج Mac/Xcode وأدوات أندرويد |
+
+أول تشغيل فعلي سيكشف على الأرجح نقاطاً تحتاج ضبطاً، خصوصاً تسجيل Asterisk على البدالة عبر الراوتر.
+
+## 1) تشغيل الوسيط على الخادم
+
+**المتطلبات:** خادم VPS بصلاحية root وعنوان IP عام (في Hostinger: خطة «VPS»، وليست «Cloud Hosting» المُدارة لأنها لا تشغّل Docker)، ومعه Docker، واسم نطاق يشير إليه (يصلح الاسم الذي تعطيه Hostinger مثل `srv123456.hstgr.cloud`).
+
+```bash
+git clone <المستودع> && cd khutwati/homephone/gateway
+cp .env.example .env
+nano .env                      # املأ القيم
+docker compose up -d --build
+```
+
+ملاحظات على `.env`:
+
+- `PBX_PUBLIC_HOST` هو عنوان المنزل العام (خانة Out. Proxy في Bria). إن كان يتغيّر فاستخدم اسم DDNS.
+- `PBX_PASSWORD` و`MOBILE_PASSWORD`: حروف وأرقام فقط، بدون `;` أو `#` أو مسافات.
+- `MOBILE_PASSWORD` أنشئها بالأمر `openssl rand -hex 24`.
+
+**الجدار الناري للخادم:**
+
+| المنفذ | الغرض | المصدر المسموح |
+|---|---|---|
+| TCP 80 و443 | التطبيق وشهادة TLS | الجميع |
+| UDP 10000-10200 | الصوت | الجميع |
+| UDP `GW_SIP_PORT` | إشارات البدالة | **عنوان المنزل فقط** |
+
+**التحقق:**
+
+```bash
+docker compose exec asterisk asterisk -rx "pjsip show registrations"   # المطلوب: Registered
+docker compose logs -f asterisk
+curl https://<النطاق>/api/health                                        # المطلوب: {"ok":true}
+```
+
+> **تنبيه:** التحويلة 300 تقبل تسجيلاً واحداً. ما دام الوسيط مسجّلاً عليها سيتوقف Bria عن استقبال المكالمات، والعكس. للتجربة بدون قطع Bria أنشئ تحويلة SIP ثانية في البدالة (إن توفّر ترخيص) وضع رقمها في `PBX_EXT`.
+
+## 2) إشعارات آيفون
+
+1. في developer.apple.com: Certificates, IDs & Profiles ← Keys ← مفتاح جديد مع تفعيل **Apple Push Notifications service (APNs)**.
+2. نزّل ملف `.p8` وضعه على الخادم باسم `gateway/secrets/apns.p8`.
+3. ضع في `.env`: `APNS_KEY_ID` (معرّف المفتاح) و`APNS_TEAM_ID` (معرّف الفريق).
+4. `docker compose up -d`
+
+## 3) بناء التطبيق لآيفون (على Mac)
+
+1. ثبّت [Flutter](https://docs.flutter.dev/get-started/install/macos) وXcode.
+2. ```bash
+   cd homephone/app
+   flutter pub get
+   open ios/Runner.xcworkspace
+   ```
+3. في Xcode: Runner ← Signing & Capabilities ← اختر فريقك (Team). معرّف التطبيق `com.dralmarri.homephone` ويجب أن يطابق `APNS_BUNDLE_ID`.
+4. تأكد من وجود صلاحية **Push Notifications** في القائمة نفسها (أضفها بزر + Capability إن لم تظهر).
+5. وصّل الآيفون وشغّل: `flutter run --release`
+
+إشعارات VoIP لا تعمل على المحاكي، فالتجربة على جهاز حقيقي.
+
+## 4) بناء التطبيق لأندرويد
+
+```bash
+cd homephone/app
+flutter build apk --release      # الناتج: build/app/outputs/flutter-apk/app-release.apk
+```
+
+بهذا يعمل الاتصال والاستقبال **والتطبيق مفتوح**. للرنين والتطبيق مغلق:
+
+1. أنشئ مشروعاً مجانياً في console.firebase.google.com وأضف تطبيق أندرويد بالمعرّف `com.dralmarri.homephone`.
+2. ضع `google-services.json` في `app/android/app/` وأعد البناء.
+3. من Project settings ← Service accounts ← Generate new private key، وضع الملف على الخادم باسم `gateway/secrets/firebase.json` ثم `docker compose up -d`.
+
+## 5) إعداد التطبيق
+
+في تبويب «الإعدادات»: اسم نطاق الوسيط وقيمة `MOBILE_PASSWORD`، ثم «حفظ واتصال». يجب أن تظهر علامتان خضراوان: «الاتصال» و«إشعارات المكالمات الواردة».
+
+## 6) بعد نجاح التجربة: إغلاق الثغرة
+
+منفذ البدالة (35767) مفتوح حالياً على الإنترنت كله بلا تشفير. بعد الاستغناء عن Bria، عدّل قاعدة Port Forwarding في راوتر المنزل لتقبل **عنوان الخادم فقط** كمصدر.
