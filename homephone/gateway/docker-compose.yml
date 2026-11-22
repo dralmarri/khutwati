@@ -1,4 +1,6 @@
-# الوسيط: Asterisk (يسجّل على البدالة ويخدم التطبيق) + خدمة الإشعارات + Caddy (شهادة TLS تلقائية)
+# الوسيط: Asterisk (يسجّل على البدالة ويخدم التطبيق) + خدمة الإشعارات.
+# Caddy اختياري (profile "caddy"): يُشغَّل فقط إن لم يكن على الخادم خادم ويب يستخدم 80/443.
+# المنافذ الداخلية (على 127.0.0.1 فقط): 18088 لـAsterisk و18473 للإشعارات.
 services:
   asterisk:
     build: ./asterisk
@@ -21,6 +23,7 @@ services:
 
   caddy:
     image: caddy:2
+    profiles: ["caddy"]
     network_mode: host
     restart: unless-stopped
     env_file: .env

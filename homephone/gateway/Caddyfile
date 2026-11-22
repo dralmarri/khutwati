@@ -1,9 +1,12 @@
+# يُستخدم فقط إن لم يكن على الخادم خادم ويب آخر (انظر nginx-homephone.conf للحالة الأخرى)
 {$GW_DOMAIN} {
-	handle /ws {
-		reverse_proxy 127.0.0.1:8088
+	handle /homephone/ws {
+		rewrite * /ws
+		reverse_proxy 127.0.0.1:18088
 	}
-	handle /api/* {
-		reverse_proxy 127.0.0.1:3000
+	handle /homephone/api/* {
+		uri strip_prefix /homephone
+		reverse_proxy 127.0.0.1:18473
 	}
 	handle {
 		respond 404

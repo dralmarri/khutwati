@@ -107,7 +107,7 @@ class PushRegistrar {
       }
       final res = await http
           .post(
-            Uri.https(settings.domain, '/api/devices'),
+            Uri.https(settings.domain, '/homephone/api/devices'),
             headers: {'authorization': settings.bearer, 'content-type': 'application/json'},
             body: jsonEncode({'platform': Platform.isIOS ? 'ios' : 'android', 'token': token}),
           )
@@ -131,7 +131,7 @@ class PushRegistrar {
   static Future<String?> callStatus(AppSettings settings, String id) async {
     try {
       final res = await http
-          .get(Uri.https(settings.domain, '/api/calls/$id'), headers: {'authorization': settings.bearer})
+          .get(Uri.https(settings.domain, '/homephone/api/calls/$id'), headers: {'authorization': settings.bearer})
           .timeout(const Duration(seconds: 4));
       if (res.statusCode != 200) return null;
       return (jsonDecode(res.body) as Map<String, dynamic>)['status'] as String?;

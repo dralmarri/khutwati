@@ -190,7 +190,7 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
     if (!m || !Object.hasOwn(passwords, m[1])) return null;
     return safeEqual(m[2], passwords[m[1]]) ? m[1] : null;
   };
-  // Caddy يضيف X-Forwarded-For لكل طلب قادم من الإنترنت. المسارات الداخلية تُقبل من Asterisk المحلي فقط.
+  // خادم الويب الأمامي (nginx أو Caddy) يضيف X-Forwarded-For لكل طلب قادم من الإنترنت. المسارات الداخلية تُقبل من Asterisk المحلي فقط.
   const isLocal = (req) => !req.headers['x-forwarded-for']
     && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 
@@ -269,5 +269,5 @@ if (require.main === module) {
   const store = new DeviceStore(path.join(env.DATA_DIR || '.', 'devices.json'));
   console.log(`extensions: ${Object.keys(passwords).join(',')}, APNs: ${apns.enabled ? 'on' : 'off'}, FCM: ${fcm.enabled ? 'on' : 'off'}, devices: ${store.devices.length}`);
   createServer({ passwords, store, apns, fcm })
-    .listen(Number(env.PUSH_PORT || 3000), '127.0.0.1');
+    .listen(Number(env.PUSH_PORT || 18473), '127.0.0.1');
 }

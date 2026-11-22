@@ -101,7 +101,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     try {
       final s = UaSettings()
         ..transportType = TransportType.WS
-        ..webSocketUrl = 'wss://${settings.domain}/ws'
+        ..webSocketUrl = 'wss://${settings.domain}/homephone/ws'
         ..uri = 'sip:${settings.extension}@${settings.domain}'
         ..authorizationUser = settings.extension
         ..password = settings.password
