@@ -6,6 +6,19 @@ OUT="${CONF_OUT:-/etc/asterisk}"
 
 fail() { echo "خطأ في ملف .env: $1" >&2; exit 1; }
 
+# كلمة المرور: حروف إنجليزية وأرقام وأغلب الرموز. الممنوع: المسافة، الحروف غير الإنجليزية،
+# والرموز ; \ " ' $ ` لأنها تُفسد ملف الإعداد. الرسالة تذكر نوع المشكلة دون عرض الكلمة.
+check_pw() {
+  rest="$(printf '%s' "$2" | LC_ALL=C tr -d 'A-Za-z0-9!#%&()*+,./:<=>?@^_{|}~[]-')"
+  [ -z "$rest" ] && return 0
+  case "$rest" in
+    *[[:space:]]*) why="فيها مسافة (ربما في آخر السطر)" ;;
+    *[\;\\\"\'\$\`]*) why="فيها أحد الرموز الممنوعة: ; \\ \" ' \$ \`" ;;
+    *) why="فيها حروف غير إنجليزية أو أرقام عربية (٠-٩)" ;;
+  esac
+  fail "$1 $why"
+}
+
 for v in PBX_PUBLIC_HOST PBX_PUBLIC_PORT PBX_LAN_IP PBX_LAN_PORT PBX_EXTS GW_SIP_PORT; do
   eval "val=\${$v:-}"
   [ -n "$val" ] || fail "المتغير $v غير معرّف"
@@ -30,7 +43,8 @@ for ext in $(echo "$PBX_EXTS" | tr ',' ' '); do
   eval "app_pw=\${MOBILE_PASSWORD_$ext:-}"
   [ -n "$pbx_pw" ] || fail "PBX_PASSWORD_$ext غير معرّف"
   [ -n "$app_pw" ] || fail "MOBILE_PASSWORD_$ext غير معرّف"
-  case "$pbx_pw$app_pw" in *[!A-Za-z0-9._-]*) fail "كلمات مرور التحويلة $ext: حروف إنجليزية وأرقام فقط";; esac
+  check_pw "PBX_PASSWORD_$ext" "$pbx_pw"
+  check_pw "MOBILE_PASSWORD_$ext" "$app_pw"
   [ -n "$first" ] || first="$ext"
 
   cat >> "$PJSIP" <<CONF
