@@ -11,6 +11,11 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+# مخزن رموز الأجهزة أُنشئ في نسخ سابقة بملكية root: نضمن أن خدمة الإشعارات تستطيع الكتابة فيه
+docker compose build --quiet push >/dev/null 2>&1 || true
+docker compose run --rm --no-deps -T --user root --entrypoint chown push -R node:node /data >/dev/null 2>&1 \
+  || echo "⚠️ تعذّر ضبط صلاحيات مخزن الإشعارات."
+
 # خادم الويب: إن كان 443 مشغولاً ببرنامج آخر (nginx مثلاً) نعمل خلفه، وإلا نشغّل Caddy الخاص بنا
 mode=caddy
 if [ -z "$(docker compose --profile caddy ps -q caddy 2>/dev/null)" ] \

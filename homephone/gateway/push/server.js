@@ -249,7 +249,10 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
       }
       return json(res, 404, { error: 'not found' });
     } catch (e) {
-      return json(res, 400, { error: 'bad request' });
+      // طلب غير صالح من العميل (JSON معطوب مثلاً) = 400، وأي عطل داخلي = 500 ويُسجَّل
+      if (e instanceof SyntaxError || e.message === 'too large') return json(res, 400, { error: 'bad request' });
+      log(`internal error on ${req.method} ${req.url.split('?')[0]}: ${e.message}`);
+      return json(res, 500, { error: 'internal error' });
     }
   });
 }

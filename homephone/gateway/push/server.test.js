@@ -73,3 +73,12 @@ test('ES256 tokens verify with the matching public key', () => {
   const [h, c, s] = jwt.split('.');
   assert.ok(crypto.verify('sha256', Buffer.from(`${h}.${c}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(s, 'base64url')));
 });
+
+test('a storage failure is reported as a server error, not a bad request', async () => {
+  const { server, base, store } = await start();
+  store.save = () => { throw new Error('EACCES'); };
+  assert.strictEqual((await add(base, 300, 'dad', 'ios', 'a'.repeat(64))).status, 500);
+  const bad = await fetch(`${base}/api/devices`, { method: 'POST', headers: auth(300, 'dad'), body: '{oops' });
+  assert.strictEqual(bad.status, 400);
+  server.close();
+});

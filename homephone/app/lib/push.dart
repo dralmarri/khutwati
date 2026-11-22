@@ -114,7 +114,11 @@ class PushRegistrar {
           .timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) {
         registered = false;
-        lastError = res.statusCode == 401 ? 'رقم التحويلة أو كلمة المرور غير صحيحة' : 'الوسيط رفض التسجيل (${res.statusCode})';
+        lastError = switch (res.statusCode) {
+          401 => 'رقم التحويلة أو كلمة المرور غير صحيحة',
+          >= 500 => 'عطل في خدمة الإشعارات على الوسيط (${res.statusCode})',
+          _ => 'الوسيط رفض التسجيل (${res.statusCode})',
+        };
         return;
       }
       final body = jsonDecode(res.body) as Map<String, dynamic>;
