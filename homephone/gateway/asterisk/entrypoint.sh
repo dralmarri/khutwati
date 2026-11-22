@@ -93,4 +93,4 @@ echo "exten => _[+*#0-9a-zA-Z]!,1,Goto(incoming,$first,1)" >> "$EXTS"
 echo "exten => s,1,Goto(incoming,$first,1)" >> "$EXTS"
 
 [ -z "${RENDER_ONLY:-}" ] || exit 0
-exec asterisk -f -U asterisk -G asterisk
+exec asterisk -f

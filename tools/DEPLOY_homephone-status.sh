@@ -4,6 +4,12 @@ set -uo pipefail
 cd "$(dirname "$0")/../homephone/gateway"
 echo "— الحاويات —"
 docker compose ps --format '{{.Service}}: {{.Status}}'
+if ! docker compose exec -T asterisk asterisk -rx "core show version" >/dev/null 2>&1; then
+  echo "— Asterisk لا يعمل. آخر ما كتبه: —"
+  docker compose logs --no-log-prefix --tail 400 asterisk 2>&1 | sed 's/\x1b\[[0-9;]*m//g' \
+    | grep -vE "declined to load|already registered|ALSA lib|may be removed|was deprecated" | tail -n 14
+  exit 1
+fi
 echo "— التسجيل على البدالة —"
 docker compose exec -T asterisk asterisk -rx "pjsip show registrations" 2>&1 | grep -E "^ *reg[0-9]+/|Objects found|No objects|Unable" || echo "(Asterisk لا يرد)"
 echo "— الجوالات المتصلة الآن —"
