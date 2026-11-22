@@ -33,12 +33,15 @@
 
 **المتطلبات:** خادم VPS بصلاحية root وعنوان IP عام (في Hostinger: خطة «VPS»، وليست «Cloud Hosting» المُدارة لأنها لا تشغّل Docker)، ومعه Docker، واسم نطاق يشير إليه (يصلح الاسم الذي تعطيه Hostinger مثل `srv123456.hstgr.cloud`).
 
+بأداة النشر (شرحها وتنصيبها في [`tools/README.md`](../tools/README.md)):
+
 ```bash
-git clone <المستودع> && cd khutwati/homephone/gateway
-cp .env.example .env
-nano .env                      # املأ القيم
-docker compose up -d --build
+deploy khutwati homephone                 # أول مرة: ينشئ ملف .env ويتوقف
+nano /opt/khutwati/homephone/gateway/.env # املأ القيم
+deploy khutwati homephone                 # يبني ويشغّل ويعرض الحالة
 ```
+
+أو يدوياً: `cd /opt/khutwati/homephone/gateway` ثم `cp .env.example .env` وتعبئته ثم `docker compose up -d --build`.
 
 ملاحظات على `.env`:
 
@@ -59,8 +62,8 @@ docker compose up -d --build
 **التحقق:**
 
 ```bash
-docker compose exec asterisk asterisk -rx "pjsip show registrations"   # المطلوب: Registered لكل تحويلة
-docker compose logs -f asterisk
+deploy khutwati homephone-status       # المطلوب: Registered لكل تحويلة
+deploy khutwati homephone-logs
 curl https://<النطاق>/api/health                                        # المطلوب: {"ok":true}
 ```
 
