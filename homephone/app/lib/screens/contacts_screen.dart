@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../contacts.dart';
-import '../phone_service.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
@@ -32,9 +31,8 @@ class ContactsScreenState extends State<ContactsScreen> {
   }
 
   void _pick(ContactEntry e) {
-    final prefix = PhoneService.instance.settings.prefix;
     if (e.numbers.length == 1) {
-      widget.onPick(ContactsStore.dialable(e.numbers.first, prefix: prefix));
+      widget.onPick(ContactsStore.dialable(e.numbers.first));
       return;
     }
     showModalBottomSheet<void>(
@@ -54,7 +52,7 @@ class ContactsScreenState extends State<ContactsScreen> {
                 title: Ltr(n, align: TextAlign.end, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500)),
                 onTap: () {
                   Navigator.pop(sheet);
-                  widget.onPick(ContactsStore.dialable(n, prefix: prefix));
+                  widget.onPick(ContactsStore.dialable(n));
                 },
               ),
             const SizedBox(height: 8),

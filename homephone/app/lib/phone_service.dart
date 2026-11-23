@@ -204,7 +204,8 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
     // نبلّغ النظام بالمكالمة أولاً: على آيفون هو الذي يفعّل الصوت، وعلى أندرويد يبقيها حيّة في الخلفية
     await FlutterCallkitIncoming.startCall(callParams(id: _callId!, number: dest));
-    final ok = await _ua.call(dest, voiceOnly: true);
+    // البادئة تُضاف هنا فقط، للأرقام الخارجية، مهما كان مصدر الرقم (لوحة، أسماء، سجل)
+    final ok = await _ua.call(ContactsStore.withPrefix(dest, settings.prefix), voiceOnly: true);
     if (!ok) {
       await _finish();
       return 'تعذّر بدء المكالمة';

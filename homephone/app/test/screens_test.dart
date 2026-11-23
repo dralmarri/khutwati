@@ -162,9 +162,17 @@ void main() {
     expect(store.nameFor('0096523741020'), 'خالد');
     expect(store.nameFor('23741021'), isNull);
     expect(ContactsStore.dialable('+965 2374-1020'), '23741020');
-    expect(ContactsStore.dialable('00965 23741020', prefix: '9'), '923741020');
-    expect(ContactsStore.dialable('+44 20 7946 0000', prefix: '9'), '900442079460000');
-    expect(ContactsStore.dialable('108', prefix: '9'), '108');
+    expect(ContactsStore.dialable('00965 23741020'), '23741020');
+    expect(ContactsStore.dialable('+44 20 7946 0000'), '00442079460000');
+  });
+
+  test('outside-line prefix is added to external numbers only', () {
+    expect(ContactsStore.withPrefix('23741020', '9'), '923741020');
+    expect(ContactsStore.withPrefix('00442079460000', '9'), '900442079460000');
+    expect(ContactsStore.withPrefix('108', '9'), '108');
+    expect(ContactsStore.withPrefix('300', '9'), '300');
+    expect(ContactsStore.withPrefix('*736', '9'), '*736');
+    expect(ContactsStore.withPrefix('23741020', ''), '23741020');
   });
 
   test('history dates read naturally', () {

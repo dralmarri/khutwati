@@ -74,9 +74,9 @@ class ContactsStore extends ChangeNotifier {
     return digits.length > 8 ? digits.substring(digits.length - 8) : digits;
   }
 
-  /// يحوّل رقماً مكتوباً في جهات الاتصال إلى ما يُطلب من البدالة:
-  /// يحذف الرموز والمسافات ومفتاح الكويت، ويضيف بادئة الخط الخارجي للأرقام الخارجية.
-  static String dialable(String number, {String prefix = ''}) {
+  /// يحوّل رقماً مكتوباً في جهات الاتصال إلى رقم محلي نظيف:
+  /// يحذف الرموز والمسافات ومفتاح الكويت، ويحوّل + الدولية إلى 00.
+  static String dialable(String number) {
     var n = number.replaceAll(RegExp(r'[^0-9+*#]'), '');
     if (n.startsWith('+965')) {
       n = n.substring(4);
@@ -85,7 +85,12 @@ class ContactsStore extends ChangeNotifier {
     } else if (n.startsWith('+')) {
       n = '00${n.substring(1)}';
     }
-    final external = n.length >= 7 && !n.contains('*') && !n.contains('#');
-    return external ? '$prefix$n' : n;
+    return n;
   }
+
+  /// رقم خارجي = 7 أرقام فأكثر. التحويلات الداخلية (مثل 108) وأكواد الخدمة (* و#) لا تُعدّ خارجية.
+  static bool isExternal(String number) => RegExp(r'^[0-9]{7,}$').hasMatch(number);
+
+  /// يضيف بادئة الخط الخارجي للأرقام الخارجية فقط. يُطبَّق مرة واحدة لحظة الطلب.
+  static String withPrefix(String number, String prefix) => prefix.isNotEmpty && isExternal(number) ? '$prefix$number' : number;
 }

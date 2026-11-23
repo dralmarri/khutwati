@@ -146,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           decoration: const InputDecoration(
             labelText: 'بادئة الخط الخارجي (اختياري)',
             hintText: '9',
-            helperText: 'تُضاف قبل أرقام جهات الاتصال إن كانت البدالة تطلبها',
+            helperText: 'تُضاف تلقائياً قبل الأرقام الخارجية فقط، فلا تكتبها عند الطلب',
           ),
         ),
         const SizedBox(height: 20),
