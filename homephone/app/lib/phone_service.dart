@@ -6,6 +6,7 @@ import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:uuid/uuid.dart';
 
@@ -83,7 +84,8 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       }
     } catch (_) {}
 
-    unawaited(ContactsStore.instance.load());
+    _historySeenAt = (await SharedPreferences.getInstance()).getInt('historySeenAt') ?? 0;
+    unawaited(ContactsStore.instance.load().then((_) => syncMissed()));
     if (settings.enabled) {
       await connect();
       unawaited(push.register(settings).then((_) => notifyListeners()));
@@ -121,13 +123,14 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     s.enabled = true; // الحفظ يشغّل الخدمة
     await s.save();
     await Permission.microphone.request();
-    if (Platform.isAndroid) {
+    {
+      // إذن الإشعارات: للمكالمات الواردة على أندرويد، ولإشعار المكالمات الفائتة على النظامين
       await FlutterCallkitIncoming.requestNotificationPermission({
         'title': 'الإشعارات',
         'rationaleMessagePermission': 'الإشعارات مطلوبة لإظهار المكالمات الواردة.',
         'postNotificationMessageRequired': 'فعّل الإشعارات من الإعدادات لتصلك المكالمات.',
       });
-      await FlutterCallkitIncoming.requestFullIntentPermission();
+      if (Platform.isAndroid) await FlutterCallkitIncoming.requestFullIntentPermission();
     }
     await connect();
     await push.register(settings);
@@ -177,6 +180,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       notifyListeners();
     });
     ensureConnected();
+    unawaited(syncMissed());
     if (settings.enabled && !push.registered) unawaited(push.register(settings).then((_) => notifyListeners()));
   }
 
@@ -221,16 +225,28 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
   void hangUp() {
     final c = _call;
+    // رفض مكالمة ترنّ: ننهيها فوراً ونسجّلها مرفوضة لا فائتة، فلا يظهر لها إشعار
+    final declining = incoming && phase == CallPhase.ringingIn;
+    if (declining) {
+      _declinedId = _callId;
+      final id = _callId;
+      if (id != null) {
+        unawaited(SharedPreferences.getInstance().then((p) => p.setString('declinedId', id)));
+      }
+    }
     if (c != null) {
       try {
-        c.hangup(phase == CallPhase.ringingIn ? {'status_code': 603} : null);
+        c.hangup(declining ? {'status_code': 603} : null);
       } catch (_) {}
+      if (declining) {
+        unawaited(_finish(missed: false));
+        return;
+      }
       // حدث الانتهاء من SIP يكمل التنظيف، لكن لا نبقي الشاشة معلّقة إن لم يصل
       Timer(const Duration(seconds: 3), () {
         if (identical(_call, c)) unawaited(_finish());
       });
     } else {
-      if (incoming) _declinedId = _callId;
       unawaited(_finish(missed: false));
     }
   }
@@ -294,7 +310,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       case CallEventActionCallEnded(:final callKitParams):
         if (callKitParams.id == _callId && phase != CallPhase.idle) hangUp();
       case CallEventActionCallTimeout(:final id):
-        if (id == _callId && phase == CallPhase.ringingIn) unawaited(_finish(missed: true));
+        if (id == _callId && phase == CallPhase.ringingIn) unawaited(_finish(missed: true, notify: false));
       case CallEventActionCallToggleMute(:final id, :final isMuted):
         if (id == _callId && isMuted != muted) toggleMute();
       case CallEventActionCallToggleHold(:final id, :final isOnHold):
@@ -475,13 +491,16 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
   // ---------- إنهاء وتنظيف ----------
 
-  Future<void> _finish({bool? missed}) async {
+  /// [notify] = أظهر إشعار المكالمة الفائتة (لا عند انتهاء مهلة الرنين، فالنظام يُظهره حينها بنفسه)
+  Future<void> _finish({bool? missed, bool notify = true}) async {
     final id = _callId;
     if (phase == CallPhase.idle && id == null) return;
     _stopWatchdog();
 
-    final wasMissed = missed ?? (incoming && connectedAt == null && !_accepted);
-    if (number.isNotEmpty) {
+    final wasMissed = incoming && (missed ?? (connectedAt == null && !_accepted));
+    final missedNumber = number;
+    final missedName = name;
+    if (number.isNotEmpty && !(wasMissed && id != null && history.any((r) => r.id == id))) {
       history.insert(
         0,
         CallRecord(
@@ -490,6 +509,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
           kind: !incoming ? CallKind.outgoing : (wasMissed ? CallKind.missed : CallKind.incoming),
           time: DateTime.now(),
           seconds: connectedAt == null ? 0 : DateTime.now().difference(connectedAt!).inSeconds,
+          id: incoming ? (id ?? '') : '',
         ),
       );
       unawaited(CallHistory.save(history));
@@ -507,6 +527,68 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       try {
         await FlutterCallkitIncoming.endCall(id);
       } catch (_) {}
+      if (wasMissed && notify && missedNumber.isNotEmpty) {
+        try {
+          await FlutterCallkitIncoming.showMissCallNotification(callParams(id: id, number: missedNumber, name: missedName));
+        } catch (_) {}
+      }
+    }
+  }
+
+  // ---------- المكالمات الفائتة ----------
+
+  int _historySeenAt = 0;
+
+  @visibleForTesting
+  void debugResetSeen() => _historySeenAt = 0;
+
+  /// عدد الفائتة التي لم يرها المستخدم بعد (شارة على تبويب السجل).
+  int get unseenMissed =>
+      history.where((r) => r.kind == CallKind.missed && r.time.millisecondsSinceEpoch > _historySeenAt).length;
+
+  Future<void> markHistorySeen() async {
+    _historySeenAt = DateTime.now().millisecondsSinceEpoch;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('historySeenAt', _historySeenAt);
+  }
+
+  bool _syncing = false;
+
+  /// يجلب من الوسيط ما فات هذه التحويلة والجوال مطفأ أو بلا إنترنت أو والخدمة متوقفة،
+  /// ويضيفه للسجل. ما رنّ هنا وسُجّل لا يتكرر.
+  Future<void> syncMissed() async {
+    if (!settings.isConfigured || _syncing) return;
+    _syncing = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // أول مرة: آخر ثلاثة أيام فقط
+      final since = prefs.getInt('missedSince') ?? DateTime.now().subtract(const Duration(days: 3)).millisecondsSinceEpoch;
+      final result = await PushRegistrar.missedSince(settings, since);
+      if (result == null) return;
+      var added = 0;
+      for (final c in result.calls) {
+        final cid = c['id'] as String? ?? '';
+        if (cid.isEmpty || cid == _callId || history.any((r) => r.id == cid)) continue;
+        final from = c['from'] as String? ?? '';
+        final sent = c['name'] as String? ?? '';
+        history.add(CallRecord(
+          number: from,
+          name: ContactsStore.instance.nameFor(from) ?? (sent != from ? sent : ''),
+          kind: CallKind.missed,
+          time: DateTime.fromMillisecondsSinceEpoch(c['at'] as int? ?? 0),
+          id: cid,
+        ));
+        added++;
+      }
+      await prefs.setInt('missedSince', result.now);
+      if (added > 0) {
+        history.sort((a, b) => b.time.compareTo(a.time));
+        await CallHistory.save(history);
+        notifyListeners();
+      }
+    } finally {
+      _syncing = false;
     }
   }
 

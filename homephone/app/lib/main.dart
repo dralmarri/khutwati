@@ -98,12 +98,22 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             onDestinationSelected: (i) {
               setState(() => _tab = i);
               if (i == 1) _contactsKey.currentState?.opened();
+              if (i == 2) phone.markHistorySeen();
             },
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.dialpad), label: 'الاتصال'),
-              NavigationDestination(icon: Icon(Icons.contacts), label: 'الأسماء'),
-              NavigationDestination(icon: Icon(Icons.history), label: 'السجل'),
-              NavigationDestination(icon: Icon(Icons.settings), label: 'الإعدادات'),
+            destinations: [
+              const NavigationDestination(icon: Icon(Icons.dialpad), label: 'الاتصال'),
+              const NavigationDestination(icon: Icon(Icons.contacts), label: 'الأسماء'),
+              NavigationDestination(
+                // شارة بعدد المكالمات الفائتة التي لم تُفتح صفحة السجل بعدها
+                icon: Badge(
+                  isLabelVisible: phone.unseenMissed > 0 && _tab != 2,
+                  label: Text('${phone.unseenMissed}'),
+                  backgroundColor: context.c.hang,
+                  child: const Icon(Icons.history),
+                ),
+                label: 'السجل',
+              ),
+              const NavigationDestination(icon: Icon(Icons.settings), label: 'الإعدادات'),
             ],
           ),
         );

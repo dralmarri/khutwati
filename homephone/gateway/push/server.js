@@ -51,6 +51,30 @@ class DeviceStore {
   }
 }
 
+// ---------- سجل المكالمات الفائتة ----------
+// يُحفظ على القرص ليجده التطبيق عند فتحه لاحقاً، حتى لو كان الجوال مطفأً وقت المكالمة.
+class MissedLog {
+  constructor(file) {
+    this.file = file;
+    this.items = [];
+    try { this.items = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* أول تشغيل */ }
+  }
+  add(entry) {
+    const weekAgo = Date.now() - 14 * 24 * 3600 * 1000;
+    this.items = this.items.filter((e) => e.at > weekAgo).slice(-199);
+    this.items.push(entry);
+    if (!this.file) return;
+    try {
+      fs.mkdirSync(path.dirname(this.file), { recursive: true });
+      fs.writeFileSync(this.file, JSON.stringify(this.items));
+    } catch { /* السجل ثانوي: لا نعطّل المكالمة بسببه */ }
+  }
+  since(ext, t) {
+    return this.items.filter((e) => e.ext === ext && e.at > t)
+      .map(({ id, from, name, at }) => ({ id, from, name, at }));
+  }
+}
+
 // ---------- APNs (آيفون) ----------
 class Apns {
   constructor({ keyFile, keyId, teamId, bundleId }) {
@@ -168,7 +192,7 @@ class Fcm {
 
 // ---------- الخادم ----------
 // passwords: { رقم التحويلة: كلمة مرور التطبيق }
-function createServer({ passwords, store, apns, fcm, log = console.log }) {
+function createServer({ passwords, store, apns, fcm, missed = new MissedLog(null), log = console.log }) {
   const calls = new Map(); // id -> { ext, status, from, name, at }
 
   const prune = () => {
@@ -243,10 +267,24 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
       if (p === '/internal/ended' && isLocal(req)) {
         const id = url.searchParams.get('id') || '';
         const c = calls.get(id);
-        if (c && c.status !== 'ended') {
+        if (c && c.status === 'ringing') {
+          // انتهت دون أن يردّ أحد: مكالمة فائتة
           c.status = 'ended';
+          missed.add({ id, ext: c.ext, from: c.from, name: c.name, at: c.at });
+          log(`missed call for ${c.ext} from ${c.from}`);
           // آيفون لا يقبل إشعار VoIP لغير مكالمة جديدة، فالتطبيق يستعلم عن الحالة بنفسه
-          fanout(c.ext, (d) => (d.platform === 'ios' ? null : { type: 'cancel', id })).catch((e) => log(e.message));
+          fanout(c.ext, (d) => (d.platform === 'ios' ? null
+            : { type: 'cancel', id, missed: '1', handle: c.from, nameCaller: c.name || c.from })).catch((e) => log(e.message));
+        }
+        return text(res, 200, 'ok');
+      }
+      if (p === '/internal/answered' && isLocal(req)) {
+        const id = url.searchParams.get('id') || '';
+        const c = calls.get(id);
+        if (c && c.status === 'ringing') {
+          // رُدّ عليها من أحد الأجهزة: نوقف الرنين على البقية، وليست فائتة
+          c.status = 'answered';
+          fanout(c.ext, (d) => (d.platform === 'ios' ? null : { type: 'cancel', id, missed: '0' })).catch((e) => log(e.message));
         }
         return text(res, 200, 'ok');
       }
@@ -274,7 +312,12 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
       const m = /^\/api\/calls\/([0-9a-f-]{36})$/.exec(p);
       if (m && req.method === 'GET') {
         const c = calls.get(m[1]);
-        return json(res, 200, { status: c && c.ext === ext ? c.status : 'ended' });
+        // التطبيق يهمّه فقط: ما زالت ترنّ أم لا
+        return json(res, 200, { status: c && c.ext === ext && c.status === 'ringing' ? 'ringing' : 'ended' });
+      }
+      if (p === '/api/missed' && req.method === 'GET') {
+        const since = Number(url.searchParams.get('since')) || 0;
+        return json(res, 200, { calls: missed.since(ext, since), now: Date.now() });
       }
       return json(res, 404, { error: 'not found' });
     } catch (e) {
@@ -286,7 +329,7 @@ function createServer({ passwords, store, apns, fcm, log = console.log }) {
   });
 }
 
-module.exports = { createServer, DeviceStore, Apns, Fcm, signJwt };
+module.exports = { createServer, DeviceStore, MissedLog, Apns, Fcm, signJwt };
 
 if (require.main === module) {
   const env = process.env;
@@ -301,6 +344,7 @@ if (require.main === module) {
   const store = new DeviceStore(path.join(env.DATA_DIR || '.', 'devices.json'));
   if (apns.problem) console.log(`APNs problem: ${apns.problem}`);
   console.log(`extensions: ${Object.keys(passwords).join(',')}, APNs: ${apns.enabled ? 'on' : 'off'}, FCM: ${fcm.enabled ? 'on' : 'off'}, devices: ${store.devices.length}`);
-  createServer({ passwords, store, apns, fcm })
+  const missed = new MissedLog(path.join(env.DATA_DIR || '.', 'missed.json'));
+  createServer({ passwords, store, apns, fcm, missed })
     .listen(Number(env.PUSH_PORT || 18473), '127.0.0.1');
 }

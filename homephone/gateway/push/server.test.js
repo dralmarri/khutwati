@@ -63,6 +63,30 @@ test('a call rings only the devices of the called extension', async () => {
   server.close();
 });
 
+test('an unanswered call is logged as missed; an answered one is not', async () => {
+  const { server, base, sent } = await start();
+  await add(base, 300, 'dad', 'android', 'd'.repeat(64));
+  const ring = async (from) => (await (await fetch(`${base}/internal/notify?ext=300&from=${from}`)).text()).split(',')[1];
+  const missedFor = async (ext, pw, since = 0) =>
+    (await (await fetch(`${base}/api/missed?since=${since}`, { headers: auth(ext, pw) })).json());
+
+  const a = await ring('111');           // يُردّ عليها ثم تنتهي
+  await fetch(`${base}/internal/answered?id=${a}`);
+  await fetch(`${base}/internal/ended?id=${a}`);
+  const b = await ring('222');           // يغلق المتصل قبل الرد
+  await fetch(`${base}/internal/ended?id=${b}`);
+  await fetch(`${base}/internal/ended?id=${b}`); // تكرار لا يضاعف السجل
+  await tick();
+
+  const list = await missedFor(300, 'dad');
+  assert.deepStrictEqual(list.calls.map((c) => [c.id, c.from]), [[b, '222']]);
+  assert.deepStrictEqual((await missedFor(301, 'family')).calls, []); // تحويلة أخرى لا تراها
+  assert.deepStrictEqual((await missedFor(300, 'dad', list.now)).calls, []);
+  const cancels = sent.filter((s) => s.payload.type === 'cancel').map((s) => s.payload.missed);
+  assert.deepStrictEqual(cancels, ['0', '1']);
+  server.close();
+});
+
 test('internal routes are refused when the request came through the proxy', async () => {
   const { server, base } = await start();
   const res = await fetch(`${base}/internal/notify?ext=300&from=1`, { headers: { 'x-forwarded-for': '203.0.113.9' } });

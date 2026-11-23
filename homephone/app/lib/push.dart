@@ -7,8 +7,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'settings.dart';
+
+const missedSubtitle = 'مكالمة فائتة على هاتف المنزل';
 
 /// شكل شاشة المكالمة الواردة (نفسه سواء جاءت من الإشعار أو من دعوة SIP مباشرة).
 CallKitParams callParams({required String id, required String number, String name = ''}) {
@@ -19,7 +22,7 @@ CallKitParams callParams({required String id, required String number, String nam
     handle: number,
     type: 0,
     duration: 60000,
-    missedCallNotification: const NotificationParams(showNotification: true, subtitle: 'مكالمة فائتة', isShowCallback: false),
+    missedCallNotification: NotificationParams(showNotification: true, subtitle: missedSubtitle, isShowCallback: false),
     android: const AndroidParams(
       isCustomNotification: false,
       isShowFullLockedScreen: true,
@@ -63,6 +66,15 @@ Future<void> handleFcmData(Map<String, dynamic> data) async {
     final mine = active.where((c) => c.id == id);
     if (mine.isNotEmpty && mine.first.isAccepted == true) return;
     await FlutterCallkitIncoming.endCall(id);
+    // أغلق المتصل قبل أن يردّ أحد: إشعار مكالمة فائتة (يعمل والتطبيق مغلق)
+    // إلا إن كان المستخدم هو من رفضها على هذا الجهاز
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    if (data['missed'] == '1' && prefs.getString('declinedId') != id) {
+      await FlutterCallkitIncoming.showMissCallNotification(
+        callParams(id: id, number: data['handle'] as String? ?? '', name: data['nameCaller'] as String? ?? ''),
+      );
+    }
   }
 }
 
@@ -148,6 +160,23 @@ class PushRegistrar {
     } catch (e) {
       debugPrint('push unregister failed: $e');
       return false;
+    }
+  }
+
+  /// المكالمات التي فاتت هذه التحويلة منذ [since]، كما سجّلها الوسيط. null إن تعذّر السؤال.
+  static Future<({List<Map<String, dynamic>> calls, int now})?> missedSince(AppSettings settings, int since) async {
+    try {
+      final res = await http
+          .get(Uri.https(settings.domain, '/homephone/api/missed', {'since': '$since'}), headers: {'authorization': settings.bearer})
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) return null;
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return (
+        calls: (body['calls'] as List<dynamic>).cast<Map<String, dynamic>>(),
+        now: body['now'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (_) {
+      return null;
     }
   }
 

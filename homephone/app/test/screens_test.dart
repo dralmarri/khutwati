@@ -11,6 +11,7 @@ import 'package:homephone/screens/history_screen.dart';
 import 'package:homephone/settings.dart';
 import 'package:homephone/theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const shots = bool.fromEnvironment('SHOTS');
 
@@ -39,6 +40,7 @@ void reset(PhoneService p) {
     ..connectedAt = null
     ..history = []
     ..debugRegistered = true
+    ..debugResetSeen()
     ..settings = AppSettings(domain: 'srv.example.com', extension: '300', password: 'secret');
   ContactsStore.instance.setEntries(const []);
   p.push
@@ -48,7 +50,10 @@ void reset(PhoneService p) {
 
 void main() {
   final phone = PhoneService.instance;
-  setUpAll(loadFonts);
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await loadFonts();
+  });
 
   final now = DateTime.now();
   final states = <String, void Function()>{
@@ -62,6 +67,11 @@ void main() {
           CallRecord(number: '108', name: '', kind: CallKind.incoming, time: now.subtract(const Duration(days: 30))),
         ],
     'history-empty': () {},
+    'dial-missed-badge': () => phone.history = [
+          CallRecord(number: '23741020', name: '', kind: CallKind.missed, time: now, id: 'a'),
+          CallRecord(number: '108', name: '', kind: CallKind.missed, time: now, id: 'b'),
+          CallRecord(number: '108', name: '', kind: CallKind.incoming, time: now),
+        ],
     'settings-ok': () {},
     'settings-off': () {
       phone.settings.enabled = false;
@@ -173,6 +183,18 @@ void main() {
     expect(ContactsStore.withPrefix('300', '9'), '300');
     expect(ContactsStore.withPrefix('*736', '9'), '*736');
     expect(ContactsStore.withPrefix('23741020', ''), '23741020');
+  });
+
+  test('unseen missed calls are counted until history is opened', () {
+    reset(phone);
+    phone.history = [
+      CallRecord(number: '1', name: '', kind: CallKind.missed, time: DateTime.now(), id: 'x'),
+      CallRecord(number: '2', name: '', kind: CallKind.incoming, time: DateTime.now()),
+      CallRecord(number: '3', name: '', kind: CallKind.missed, time: DateTime.now(), id: 'y'),
+    ];
+    expect(phone.unseenMissed, 2);
+    final back = CallRecord.fromJson(phone.history.first.toJson());
+    expect(back.id, 'x');
   });
 
   test('history dates read naturally', () {

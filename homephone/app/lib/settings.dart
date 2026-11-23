@@ -72,7 +72,10 @@ class AppSettings {
 enum CallKind { outgoing, incoming, missed }
 
 class CallRecord {
-  CallRecord({required this.number, required this.name, required this.kind, required this.time, this.seconds = 0});
+  CallRecord({required this.number, required this.name, required this.kind, required this.time, this.seconds = 0, this.id = ''});
+
+  /// معرّف المكالمة لدى الوسيط (للواردة)، لمنع تكرارها عند مزامنة الفائتة
+  final String id;
 
   final String number;
   final String name;
@@ -86,6 +89,7 @@ class CallRecord {
         'kind': kind.name,
         'time': time.millisecondsSinceEpoch,
         'seconds': seconds,
+        if (id.isNotEmpty) 'id': id,
       };
 
   static CallRecord fromJson(Map<String, dynamic> j) => CallRecord(
@@ -94,6 +98,7 @@ class CallRecord {
         kind: CallKind.values.firstWhere((k) => k.name == j['kind'], orElse: () => CallKind.outgoing),
         time: DateTime.fromMillisecondsSinceEpoch(j['time'] as int? ?? 0),
         seconds: j['seconds'] as int? ?? 0,
+        id: j['id'] as String? ?? '',
       );
 }
 
