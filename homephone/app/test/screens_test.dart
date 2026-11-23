@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:homephone/contacts.dart';
 import 'package:homephone/main.dart';
 import 'package:homephone/phone_service.dart';
 import 'package:homephone/screens/history_screen.dart';
@@ -39,6 +40,7 @@ void reset(PhoneService p) {
     ..history = []
     ..debugRegistered = true
     ..settings = AppSettings(domain: 'srv.example.com', extension: '300', password: 'secret');
+  ContactsStore.instance.setEntries(const []);
   p.push
     ..registered = true
     ..lastError = null;
@@ -61,6 +63,17 @@ void main() {
         ],
     'history-empty': () {},
     'settings-ok': () {},
+    'settings-off': () {
+      phone.settings.enabled = false;
+      phone.debugRegistered = false;
+      phone.push.registered = false;
+    },
+    'contacts': () => ContactsStore.instance.setEntries(const [
+          ContactEntry('أم أحمد', ['+965 5598 7654']),
+          ContactEntry('خالد', ['23741020', '0096599887766']),
+          ContactEntry('Dr. Salem', ['+44 20 7946 0000']),
+          ContactEntry('جدّي أبو سالم', ['22334455']),
+        ]),
     'settings-error': () {
       phone.debugRegistered = false;
       phone.push
@@ -117,7 +130,9 @@ void main() {
             home: const HomePage(),
           ));
           await tester.pump();
-          if (st.key.startsWith('history')) {
+          if (st.key == 'contacts') {
+            await tester.tap(find.text('الأسماء'));
+          } else if (st.key.startsWith('history')) {
             await tester.tap(find.text('السجل'));
           } else if (st.key.startsWith('settings')) {
             await tester.tap(find.text('الإعدادات'));
@@ -138,6 +153,19 @@ void main() {
       }
     }
   }
+
+  test('contact numbers match and convert for the PBX', () {
+    expect(ContactsStore.matchKey('+965 2374 1020'), ContactsStore.matchKey('23741020'));
+    expect(ContactsStore.matchKey('108'), '108');
+    final store = ContactsStore.instance..setEntries(const [ContactEntry('خالد', ['+965 2374 1020'])]);
+    expect(store.nameFor('23741020'), 'خالد');
+    expect(store.nameFor('0096523741020'), 'خالد');
+    expect(store.nameFor('23741021'), isNull);
+    expect(ContactsStore.dialable('+965 2374-1020'), '23741020');
+    expect(ContactsStore.dialable('00965 23741020', prefix: '9'), '923741020');
+    expect(ContactsStore.dialable('+44 20 7946 0000', prefix: '9'), '900442079460000');
+    expect(ContactsStore.dialable('108', prefix: '9'), '108');
+  });
 
   test('history dates read naturally', () {
     final n = DateTime(2026, 11, 22, 15, 0);

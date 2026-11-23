@@ -64,6 +64,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>لعرض جهات الاتصال والاتصال بها من خط المنزل، وإظهار اسم المتصل.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>الميكروفون مطلوب لإجراء المكالمات.</string>
 	<key>UIBackgroundModes</key>

@@ -125,7 +125,9 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final (Color dot, String text) = phone.isRegistered
+    final (Color dot, String text) = !phone.settings.enabled && phone.settings.isConfigured
+        ? (c.outline, 'متوقف')
+        : phone.isRegistered
         ? (c.call, 'تحويلة ${phone.settings.extension}')
         : phone.isConnecting
             ? (c.warn, 'جارٍ الاتصال…')

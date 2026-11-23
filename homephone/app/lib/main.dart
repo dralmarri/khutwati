@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'phone_service.dart';
 import 'screens/call_screen.dart';
+import 'screens/contacts_screen.dart';
 import 'screens/dialpad_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
@@ -39,8 +40,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final phone = PhoneService.instance;
-  late int _tab = phone.settings.isConfigured ? 0 : 2;
+  static const _settingsTab = 3;
+  late int _tab = phone.settings.isConfigured ? 0 : _settingsTab;
   final _dialpadKey = GlobalKey<DialpadScreenState>();
+  final _contactsKey = GlobalKey<ContactsScreenState>();
 
   @override
   void initState() {
@@ -81,6 +84,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     index: _tab,
                     children: [
                       DialpadScreen(key: _dialpadKey),
+                      ContactsScreen(key: _contactsKey, onPick: _redial),
                       HistoryScreen(onRedial: _redial),
                       const SettingsScreen(),
                     ],
@@ -91,9 +95,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _tab,
-            onDestinationSelected: (i) => setState(() => _tab = i),
+            onDestinationSelected: (i) {
+              setState(() => _tab = i);
+              if (i == 1) _contactsKey.currentState?.opened();
+            },
             destinations: const [
               NavigationDestination(icon: Icon(Icons.dialpad), label: 'الاتصال'),
+              NavigationDestination(icon: Icon(Icons.contacts), label: 'الأسماء'),
               NavigationDestination(icon: Icon(Icons.history), label: 'السجل'),
               NavigationDestination(icon: Icon(Icons.settings), label: 'الإعدادات'),
             ],

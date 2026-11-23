@@ -5,13 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// إعدادات الاتصال بالوسيط. كلمة المرور تُحفظ في مخزن النظام الآمن.
 class AppSettings {
-  AppSettings({this.domain = '', this.extension = '', this.password = ''});
+  AppSettings({this.domain = '', this.extension = '', this.password = '', this.enabled = true, this.prefix = ''});
 
   String domain;
 
   /// رقم التحويلة في البدالة التي يستخدمها هذا الجهاز (مثل 300)
   String extension;
   String password;
+
+  /// الخدمة مفعّلة: التطبيق مسجّل على الوسيط ويستقبل المكالمات. عند الإيقاف لا يرنّ ولا يتصل.
+  bool enabled;
+
+  /// بادئة الخط الخارجي في البدالة (مثل 9)، تُضاف قبل أرقام جهات الاتصال. فارغة إن لم تُطلب.
+  String prefix;
 
   bool get isConfigured => domain.isNotEmpty && extension.isNotEmpty && password.isNotEmpty;
 
@@ -35,6 +41,8 @@ class AppSettings {
       domain: prefs.getString('domain') ?? '',
       extension: prefs.getString('extension') ?? '',
       password: password,
+      enabled: prefs.getBool('enabled') ?? true,
+      prefix: prefs.getString('prefix') ?? '',
     );
   }
 
@@ -42,6 +50,8 @@ class AppSettings {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('domain', domain);
     await prefs.setString('extension', extension);
+    await prefs.setBool('enabled', enabled);
+    await prefs.setString('prefix', prefix);
     await _secure.write(
       key: 'password',
       value: password,

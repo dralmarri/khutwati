@@ -17,14 +17,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final phone = PhoneService.instance;
   late final _domain = TextEditingController(text: phone.settings.domain);
   late final _extension = TextEditingController(text: phone.settings.extension);
+  late final _prefix = TextEditingController(text: phone.settings.prefix);
   late final _password = TextEditingController(text: phone.settings.password);
   bool _hide = true;
   bool _saving = false;
+  bool _toggling = false;
+
+  Future<void> _toggle(bool value) async {
+    setState(() => _toggling = true);
+    final ok = await phone.setEnabled(value);
+    if (!mounted) return;
+    setState(() => _toggling = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أُوقفت الخدمة هنا، لكن تعذّر إبلاغ الوسيط. قد يصلك إشعار مكالمة حتى يعود الاتصال.')),
+      );
+    }
+  }
 
   @override
   void dispose() {
     _domain.dispose();
     _extension.dispose();
+    _prefix.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -37,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         domain: AppSettings.cleanDomain(_domain.text),
         extension: _extension.text.trim(),
         password: _password.text.trim(),
+        prefix: _prefix.text.trim(),
       ),
     );
     if (mounted) setState(() => _saving = false);
@@ -49,16 +65,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _content(BuildContext context) {
     final c = context.c;
     final connecting = !phone.isRegistered && phone.isConnecting;
+    final off = phone.settings.isConfigured && !phone.settings.enabled;
     final sipText = phone.isRegistered
         ? 'مسجّل على الوسيط'
         : switch (phone.registration) {
             RegistrationStateEnum.REGISTRATION_FAILED => 'فشل التسجيل',
-            _ => connecting ? 'جارٍ الاتصال…' : (phone.settings.isConfigured ? 'غير متصل' : 'أدخل الإعدادات'),
+            _ => !phone.settings.enabled && phone.settings.isConfigured
+                ? 'الخدمة متوقفة'
+                : connecting
+                    ? 'جارٍ الاتصال…'
+                    : (phone.settings.isConfigured ? 'غير متصل' : 'أدخل الإعدادات'),
           };
     const ltrInput = TextStyle(fontSize: 16, fontFeatures: tabular);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       children: [
+        if (phone.settings.isConfigured) ...[
+          Material(
+            color: phone.settings.enabled ? c.primaryContainer : c.s2,
+            borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
+            child: SwitchListTile(
+              value: phone.settings.enabled,
+              onChanged: _toggling ? null : _toggle,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              title: Text(
+                phone.settings.enabled ? 'الخدمة تعمل' : 'الخدمة متوقفة',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.onSurface),
+              ),
+              subtitle: Text(
+                phone.settings.enabled ? 'تستقبل المكالمات وتتصل من خط المنزل' : 'لا يرنّ هذا الجوال ولا يتصل حتى تشغّلها',
+                style: TextStyle(fontSize: 13, color: c.onVariant),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+        ],
         TextField(
           controller: _domain,
           textDirection: TextDirection.ltr,
@@ -94,6 +136,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _prefix,
+          textDirection: TextDirection.ltr,
+          style: ltrInput,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9*#]'))],
+          decoration: const InputDecoration(
+            labelText: 'بادئة الخط الخارجي (اختياري)',
+            hintText: '9',
+            helperText: 'تُضاف قبل أرقام جهات الاتصال إن كانت البدالة تطلبها',
+          ),
+        ),
         const SizedBox(height: 20),
         FilledButton(
           onPressed: _saving ? null : _save,
@@ -122,14 +177,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _StatusRow(
                 ok: phone.isRegistered,
                 pending: connecting,
+                off: off,
                 title: 'الاتصال',
                 detail: phone.isRegistered ? sipText : (phone.lastError ?? sipText),
               ),
               Divider(height: 1, color: c.outlineVariant),
               _StatusRow(
                 ok: phone.push.registered,
+                off: off,
                 title: 'إشعارات المكالمات الواردة',
-                detail: phone.push.registered ? 'مفعّلة: يرنّ الهاتف والتطبيق مغلق' : (phone.push.lastError ?? 'غير مفعّلة'),
+                detail: phone.push.registered
+                    ? 'مفعّلة: يرنّ الهاتف والتطبيق مغلق'
+                    : (!phone.settings.enabled ? 'متوقفة مع الخدمة' : (phone.push.lastError ?? 'غير مفعّلة')),
               ),
             ],
           ),
@@ -154,16 +213,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _StatusRow extends StatelessWidget {
-  const _StatusRow({required this.ok, required this.title, required this.detail, this.pending = false});
+  const _StatusRow({required this.ok, required this.title, required this.detail, this.pending = false, this.off = false});
   final bool ok;
   final bool pending;
+
+  /// الخدمة أوقفها المستخدم: حالة محايدة لا خطأ
+  final bool off;
   final String title;
   final String detail;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final (IconData icon, Color color) = ok
+    final (IconData icon, Color color) = off
+        ? (Icons.pause_circle, c.outline)
+        : ok
         ? (Icons.check_circle, c.call)
         : pending
             ? (Icons.sync, c.warn)
@@ -184,8 +248,8 @@ class _StatusRow extends StatelessWidget {
                   detail,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: ok ? FontWeight.w400 : FontWeight.w600,
-                    color: ok ? c.onVariant : (pending ? c.warnFg : c.hangFg),
+                    fontWeight: ok || off ? FontWeight.w400 : FontWeight.w600,
+                    color: ok || off ? c.onVariant : (pending ? c.warnFg : c.hangFg),
                   ),
                 ),
               ],

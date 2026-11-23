@@ -132,6 +132,25 @@ class PushRegistrar {
     }
   }
 
+  /// يزيل هذا الجهاز من قائمة الإشعارات لدى الوسيط (عند إيقاف الخدمة) فلا يوقظه أي اتصال.
+  Future<bool> unregister(AppSettings settings) async {
+    registered = false;
+    lastError = null;
+    if (!settings.isConfigured) return true;
+    try {
+      final token = await _token();
+      if (token == null) return true;
+      final req = http.Request('DELETE', Uri.https(settings.domain, '/homephone/api/devices'))
+        ..headers.addAll({'authorization': settings.bearer, 'content-type': 'application/json'})
+        ..body = jsonEncode({'token': token});
+      final res = await req.send().timeout(const Duration(seconds: 10));
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('push unregister failed: $e');
+      return false;
+    }
+  }
+
   /// حالة مكالمة واردة لدى الوسيط: "ringing" أو "ended"، أو null إذا تعذّر السؤال.
   static Future<String?> callStatus(AppSettings settings, String id) async {
     try {

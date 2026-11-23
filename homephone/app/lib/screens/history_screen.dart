@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../contacts.dart';
 import '../phone_service.dart';
 import '../settings.dart';
 import '../theme.dart';
@@ -72,6 +73,8 @@ class HistoryScreen extends StatelessWidget {
           CallKind.incoming => (Icons.call_received, c.callContainer, c.callFg, 'واردة'),
           CallKind.missed => (Icons.call_missed, c.hangContainer, c.hangFg, 'فائتة'),
         };
+        // الاسم المحفوظ وقت المكالمة، وإلا فالاسم الحالي في جهات الاتصال
+        final shown = r.name.isNotEmpty ? r.name : (ContactsStore.instance.nameFor(r.number) ?? '');
         final titleStyle = TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: missed ? c.hangFg : c.onSurface);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -88,8 +91,8 @@ class HistoryScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    r.name.isNotEmpty
-                        ? Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: titleStyle)
+                    shown.isNotEmpty
+                        ? Text(shown, maxLines: 1, overflow: TextOverflow.ellipsis, style: titleStyle)
                         : Ltr(prettyNumber(r.number), style: titleStyle),
                     const SizedBox(height: 2),
                     Text('$kind · ${when(r.time)}', style: TextStyle(fontSize: 13, color: c.onVariant, fontFeatures: tabular)),

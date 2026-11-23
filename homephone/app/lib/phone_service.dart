@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:sip_ua/sip_ua.dart';
 import 'package:uuid/uuid.dart';
 
+import 'contacts.dart';
 import 'push.dart';
 import 'settings.dart';
 
@@ -62,7 +63,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
   /// الاتصال قيد الإنشاء (عند فتح التطبيق مثلاً، فالنظام يقطعه والتطبيق في الخلفية)
   bool get isConnecting =>
-      !_ua.registered && settings.isConfigured && (_starting || _ua.connecting || _ua.connected || _resuming);
+      !_ua.registered && settings.isConfigured && settings.enabled && (_starting || _ua.connecting || _ua.connected || _resuming);
 
   // ---------- التهيئة والاتصال ----------
 
@@ -82,13 +83,42 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       }
     } catch (_) {}
 
-    await connect();
-    unawaited(push.register(settings).then((_) => notifyListeners()));
+    unawaited(ContactsStore.instance.load());
+    if (settings.enabled) {
+      await connect();
+      unawaited(push.register(settings).then((_) => notifyListeners()));
+    }
     notifyListeners();
+  }
+
+  /// يشغّل الخدمة أو يوقفها. عند الإيقاف يلغي التسجيل ويزيل الجهاز من الإشعارات،
+  /// فلا يرنّ التطبيق ولا يتصل إلى أن تُشغَّل من جديد. يعيد false إن تعذّر إبلاغ الوسيط بالإيقاف.
+  Future<bool> setEnabled(bool value) async {
+    if (settings.enabled == value) return true;
+    settings.enabled = value;
+    await settings.save();
+    notifyListeners();
+    var ok = true;
+    if (value) {
+      await connect();
+      await push.register(settings);
+    } else {
+      ok = await push.unregister(settings);
+      try {
+        await _ua.unregister();
+      } catch (_) {}
+      try {
+        _ua.stop();
+      } catch (_) {}
+      registration = RegistrationStateEnum.UNREGISTERED;
+    }
+    notifyListeners();
+    return ok;
   }
 
   Future<void> applySettings(AppSettings s) async {
     settings = s;
+    s.enabled = true; // الحفظ يشغّل الخدمة
     await s.save();
     await Permission.microphone.request();
     if (Platform.isAndroid) {
@@ -105,7 +135,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
   }
 
   Future<void> connect() async {
-    if (!settings.isConfigured || _starting) return;
+    if (!settings.isConfigured || !settings.enabled || _starting) return;
     _starting = true;
     try {
       final s = UaSettings()
@@ -131,7 +161,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
 
   /// يُستدعى عند عودة التطبيق للواجهة أو عند وصول إشعار: يعيد الاتصال إن كان مقطوعاً.
   void ensureConnected() {
-    if (!settings.isConfigured) return;
+    if (!settings.isConfigured || !settings.enabled) return;
     if (_starting || _ua.connected || _ua.connecting) return;
     unawaited(connect());
   }
@@ -147,7 +177,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
       notifyListeners();
     });
     ensureConnected();
-    if (!push.registered) unawaited(push.register(settings).then((_) => notifyListeners()));
+    if (settings.enabled && !push.registered) unawaited(push.register(settings).then((_) => notifyListeners()));
   }
 
   // ---------- أفعال المستخدم ----------
@@ -157,6 +187,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     final dest = target.replaceAll(RegExp(r'[^0-9+*#]'), '');
     if (dest.isEmpty) return 'أدخل رقماً';
     if (phase != CallPhase.idle) return 'توجد مكالمة جارية';
+    if (!settings.enabled) return 'الخدمة متوقفة. شغّلها من الإعدادات';
     if (!isRegistered) {
       ensureConnected();
       return 'غير متصل بالوسيط';
@@ -167,6 +198,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     _callId = _uuid.v4();
     incoming = false;
     number = dest;
+    name = ContactsStore.instance.nameFor(dest) ?? '';
     phase = CallPhase.dialing;
     notifyListeners();
 
@@ -244,6 +276,11 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
         unawaited(push.register(settings).then((_) => notifyListeners()));
       case CallEventActionCallIncoming(:final callKitParams):
         final id = callKitParams.id;
+        if (!settings.enabled) {
+          // إشعار وصل والخدمة متوقفة (تعذّر إبلاغ الوسيط بالإيقاف): ننهي شاشة الرنين فوراً
+          unawaited(FlutterCallkitIncoming.endCall(id));
+          return;
+        }
         if (phase == CallPhase.idle || (phase == CallPhase.ringingIn && _callId == null)) {
           _adoptRinging(id, callKitParams.handle ?? '', callKitParams.nameCaller ?? '');
         }
@@ -268,13 +305,20 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     }
   }
 
+  /// اسم جهة الاتصال المحفوظ في الجوال يتقدّم على ما ترسله البدالة.
+  void _nameFromContacts() {
+    final known = ContactsStore.instance.nameFor(number);
+    if (known != null) name = known;
+  }
+
   /// شاشة الرنين ظاهرة (من إشعار) ولم تصل دعوة SIP بعد.
   void _adoptRinging(String id, String handle, String caller) {
-    if (id == _declinedId) return;
+    if (id == _declinedId || !settings.enabled) return;
     _callId = id;
     incoming = true;
     if (number.isEmpty) number = handle;
     if (name.isEmpty && caller != handle) name = caller;
+    _nameFromContacts();
     phase = CallPhase.ringingIn;
     ensureConnected();
     _startWatchdog();
@@ -349,6 +393,7 @@ class PhoneService extends ChangeNotifier implements SipUaHelperListener {
     final sipName = call.remote_display_name ?? '';
     if (sipNumber.isNotEmpty) number = sipNumber;
     if (sipName.isNotEmpty && sipName != sipNumber) name = sipName;
+    _nameFromContacts();
     phase = CallPhase.ringingIn;
     notifyListeners();
 
